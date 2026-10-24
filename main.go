@@ -59,14 +59,10 @@ type (
 
 func main() {
 	cfg := Config{Address: serverAddress, YtDLPPath: envOrDefault("YT_DLP_PATH", defaultYtDLP), JSRuntime: jsRuntime}
-
 	cleanClient := &http.Client{
 		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).DialContext,
+			Proxy:               http.ProxyFromEnvironment,
+			DialContext:         (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 			ForceAttemptHTTP2:   false,
 			MaxIdleConns:        100,
 			IdleConnTimeout:     90 * time.Second,
@@ -88,11 +84,7 @@ func main() {
 	mux.HandleFunc("/api/audio", app.handleAudioProxy)
 	mux.Handle("/", http.FileServer(http.Dir("./static")))
 
-	server := &http.Server{
-		Addr:              cfg.Address,
-		Handler:           app.requestLogger(mux),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	server := &http.Server{Addr: cfg.Address, Handler: app.requestLogger(mux), ReadHeaderTimeout: 5 * time.Second}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -103,7 +95,7 @@ func main() {
 		server.Shutdown(ctx)
 	}()
 
-	log.Printf("Dazo Music PRO berjalan di http://localhost%s", cfg.Address)
+	log.Printf("dazo-musicyt berjalan di http://localhost%s", cfg.Address)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("Server gagal: %v", err)
 	}
@@ -168,18 +160,13 @@ func (a *App) getAudioStream(ctx context.Context, video string) (CachedStream, e
 		HTTPHeaders map[string]string `json:"http_headers"`
 	}
 	if err := json.Unmarshal(out, &ytdlpData); err != nil {
-		return CachedStream{}, errors.New("gagal memproses data yt-dlp")
+		return CachedStream{}, errors.New("gagal parsing yt-dlp")
 	}
-
 	if ytdlpData.URL == "" {
 		return CachedStream{}, errors.New("url streaming tidak ditemukan")
 	}
 
-	newCache := CachedStream{
-		URL:     ytdlpData.URL,
-		Headers: ytdlpData.HTTPHeaders,
-	}
-
+	newCache := CachedStream{URL: ytdlpData.URL, Headers: ytdlpData.HTTPHeaders}
 	a.streamMu.Lock()
 	a.streamCache[video] = newCache
 	a.streamMu.Unlock()
@@ -197,6 +184,7 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := strings.ToLower(query)
+
 	a.cacheMu.RLock()
 	cached, ok := a.searchCache[key]
 	a.cacheMu.RUnlock()
@@ -204,6 +192,7 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, cached)
 		return
 	}
+
 	if !a.acquire(w, r) {
 		return
 	}
@@ -225,19 +214,16 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	for scanner.Scan() {
 		var item struct {
-			ID         string `json:"id"`
-			Title      string `json:"title"`
-			Thumbnail  string `json:"thumbnail"`
-			Thumbnails []struct {
+			ID, Title, Thumbnail, WebpageURL, URL string
+			Thumbnails                            []struct {
 				URL string `json:"url"`
 			} `json:"thumbnails"`
-			Duration   float64 `json:"duration"`
-			WebpageURL string  `json:"webpage_url"`
-			URL        string  `json:"url"`
+			Duration float64 `json:"duration"`
 		}
 		if json.Unmarshal(scanner.Bytes(), &item) != nil {
 			continue
 		}
+
 		videoURL := item.WebpageURL
 		if videoURL == "" {
 			videoURL = item.URL
@@ -259,12 +245,6 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 		results = append(results, SearchResult{ID: item.ID, Title: item.Title, Thumbnail: thumb, Duration: int(item.Duration), URL: videoURL})
 	}
-
-	// Pengecekan error akhir pada scanner
-	if err := scanner.Err(); err != nil {
-		log.Printf("Scanner error: %v", err)
-	}
-
 	cmd.Wait()
 
 	if len(results) > 0 {
@@ -339,7 +319,6 @@ func (a *App) handleAudioProxy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodHead || resp.StatusCode == http.StatusNoContent {
 		return
 	}
-
 	io.CopyBuffer(w, resp.Body, make([]byte, 128*1024))
 }
 
@@ -349,8 +328,8 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
-func writeJSONError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, ErrorResponse{Error: message})
+func writeJSONError(w http.ResponseWriter, status int, m string) {
+	writeJSON(w, status, ErrorResponse{Error: m})
 }
 
 func envOrDefault(k, f string) string {

@@ -3,199 +3,376 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dazo Hi-Res Audio Player</title>
-
+    <title>dazo-musicyt</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+    />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="container app-container glass-panel">
-      <h1 class="text-center fw-bold mb-1" style="letter-spacing: -1px">
-        Dazo Music <span class="badge-premium">PRO</span>
-      </h1>
-      <p class="text-center text-white-50 small mb-4">Auto-Queue • Custom Playback • Live Lyrics</p>
+    <!-- Background Dinamis -->
+    <div id="appBg" class="app-bg"></div>
 
-      <div class="input-group shadow-sm">
-        <input
-          type="text"
-          id="searchInput"
-          class="form-control search-input bg-dark text-white"
-          placeholder="Ketik judul lagu dan tekan Enter..."
-        />
-        <button class="btn btn-success search-btn" type="button" id="searchBtn">Cari Lagu</button>
-      </div>
-      <div id="statusText" class="text-white-50 text-center small fw-bold mt-3"></div>
+    <!-- Tombol Hamburger Tunggal -->
+    <button id="toggleSidebarBtn" class="toggle-btn shadow-lg"><i class="bi bi-list"></i></button>
 
-      <div class="search-results" id="searchResultsContainer">
-        <h6 class="text-white-50 border-bottom border-secondary pb-2 mb-3">Hasil Pencarian</h6>
-        <div id="resultsList"></div>
-      </div>
+    <div
+      class="container-fluid h-100 p-0 text-white app-container position-relative z-1 d-flex flex-nowrap"
+    >
+      <!-- SIDEBAR -->
+      <div id="sidebar" class="sidebar d-flex flex-column p-3 p-md-4">
+        <!-- Header Sidebar -->
+        <div class="brand-header text-left mb-4" style="margin-left: 55px; margin-top: 5px">
+          <h3 class="brand-title m-0">dazo-musicyt</h3>
+          <p class="text-white-50 small mt-1 mb-0 tracking-widest" style="font-size: 0.65rem">
+            HIGH-FIDELITY AUDIO
+          </p>
+        </div>
 
-      <div class="player-layout" id="playerSection" style="display: none">
-        <div class="player-main">
-          <div class="now-playing-card">
-            <img
-              id="npCover"
-              class="cover-art-large"
-              src=""
-              alt="Album Cover"
-              crossorigin="anonymous"
+        <!-- FORM PENCARIAN -->
+        <div class="search-box mb-3">
+          <div
+            class="input-group shadow-sm border border-secondary border-opacity-25 rounded overflow-hidden"
+          >
+            <input
+              type="text"
+              id="searchInput"
+              class="form-control bg-dark text-white border-0 shadow-none px-3"
+              placeholder="Cari lagu..."
             />
-            <div id="npTitle" class="fw-bold fs-5 mb-1 text-truncate">Judul Lagu</div>
-            <p class="text-white-50 small mb-0">Opus Hi-Res Stream</p>
+            <button class="btn btn-success fw-bold px-4 border-0" type="button" id="searchBtn">
+              Cari
+            </button>
+          </div>
+          <div id="statusText" class="text-center small mt-2 text-warning fw-bold"></div>
+        </div>
 
-            <canvas id="visualizerCanvas"></canvas>
+        <!-- SEKAT PEMISAH -->
+        <div class="w-100 border-bottom border-secondary border-opacity-25 mb-4"></div>
 
-            <div class="playback-controls">
-              <div class="progress-container">
+        <div class="sidebar-scrollable flex-grow-1 overflow-y-auto pe-2 custom-scrollbar">
+          <div id="searchResultsContainer" class="d-none mb-4">
+            <h6 class="section-title">Hasil Pencarian</h6>
+            <div id="resultsList" class="d-flex flex-column gap-2"></div>
+          </div>
+
+          <!-- FORM PEMBUATAN PLAYLIST -->
+          <div class="search-box mb-4">
+            <h6 class="section-title mb-2 text-warning">
+              <i class="bi bi-folder-plus me-2"></i>Buat Playlist Baru
+            </h6>
+            <div
+              class="input-group shadow-sm border border-secondary border-opacity-25 rounded overflow-hidden mb-2"
+            >
+              <input
+                type="text"
+                id="newSidebarFolderName"
+                class="form-control bg-dark text-white border-0 shadow-none px-3"
+                placeholder="Nama folder..."
+              />
+              <button class="btn btn-success fw-bold px-4 border-0" id="createSidebarFolderBtn">
+                Buat
+              </button>
+            </div>
+            <div id="sidebarPlaylistStatus" class="small text-warning fw-bold mb-2"></div>
+
+            <!-- Kontainer Folder Playlist Buatan Sendiri -->
+            <div id="customPlaylistsContainer" class="d-flex flex-column gap-2 mt-3"></div>
+          </div>
+
+          <!-- Folder: Lagu Disukai -->
+          <div class="sidebar-folder mb-4 mt-2 border-top border-secondary border-opacity-25 pt-3">
+            <div
+              class="folder-header d-flex justify-content-between align-items-center mb-2"
+              data-target="playlistWrapper"
+              data-icon="icon-playlist"
+            >
+              <h6 class="section-title mb-0 text-danger">
+                <i class="bi bi-heart-fill me-2"></i> Lagu Disukai
+              </h6>
+              <i id="icon-playlist" class="bi bi-chevron-down text-white-50 transition-icon"></i>
+            </div>
+            <div id="playlistWrapper" class="folder-content">
+              <div class="d-flex gap-2 mb-3 px-1">
+                <button id="playAllLikedBtn" class="btn folder-action-btn flex-grow-1">
+                  <i class="bi bi-play-fill me-1"></i> Urut
+                </button>
+                <button id="shuffleAllLikedBtn" class="btn folder-action-btn flex-grow-1">
+                  <i class="bi bi-shuffle me-1"></i> Acak
+                </button>
+              </div>
+              <div id="playlistList" class="d-flex flex-column gap-2"></div>
+            </div>
+          </div>
+
+          <!-- Folder: Antrean Berikutnya -->
+          <div class="sidebar-folder mb-4">
+            <div
+              class="folder-header d-flex justify-content-between align-items-center mb-2"
+              data-target="queueWrapper"
+              data-icon="icon-queue"
+            >
+              <h6 class="section-title mb-0 text-info">
+                <i class="bi bi-music-note-list me-2"></i> Antrean Berikutnya
+              </h6>
+              <i id="icon-queue" class="bi bi-chevron-down text-white-50 transition-icon"></i>
+            </div>
+            <div id="queueWrapper" class="folder-content">
+              <div class="d-flex gap-2 mb-3 px-1">
+                <button id="playAllQueueBtn" class="btn folder-action-btn flex-grow-1">
+                  <i class="bi bi-play-fill me-1"></i> Urut
+                </button>
+                <button id="shuffleAllQueueBtn" class="btn folder-action-btn flex-grow-1">
+                  <i class="bi bi-shuffle me-1"></i> Acak
+                </button>
+              </div>
+              <div id="queueList" class="d-flex flex-column gap-2"></div>
+            </div>
+          </div>
+
+          <!-- Folder: Terakhir Diputar -->
+          <div class="sidebar-folder">
+            <div
+              class="folder-header d-flex justify-content-between align-items-center mb-2"
+              data-target="historyList"
+              data-icon="icon-history"
+            >
+              <h6 class="section-title mb-0 text-secondary">
+                <i class="bi bi-clock-history me-2"></i> Terakhir Diputar
+              </h6>
+              <i id="icon-history" class="bi bi-chevron-down text-white-50 transition-icon"></i>
+            </div>
+            <div id="historyList" class="d-flex flex-column gap-2 folder-content"></div>
+            <div class="text-end mt-2">
+              <button
+                class="btn btn-link btn-sm text-danger text-decoration-none p-0 fw-bold"
+                id="clearHistoryBtn"
+              >
+                Kosongkan Riwayat
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN PANEL -->
+      <div
+        id="mainPanel"
+        class="main-panel position-relative d-flex align-items-center justify-content-center h-100 overflow-hidden w-100"
+      >
+        <div id="emptyState" class="empty-state text-center text-white-50 fade-in w-100">
+          <h1 class="display-1 opacity-25 mb-4"><i class="bi bi-music-note-beamed"></i></h1>
+          <h3 class="fw-bold">Selamat Datang di dazo-musicyt</h3>
+          <p>Gunakan panel pencarian di sidebar untuk memutar musik.</p>
+        </div>
+
+        <div
+          id="playerSection"
+          class="w-100 d-none fade-in h-100 d-flex align-items-center justify-content-center p-3 p-md-4"
+        >
+          <div
+            id="playerCard"
+            class="glass-card position-relative shadow-lg d-flex flex-column align-items-center p-4 p-md-4 w-100"
+            style="max-width: 600px; height: 100%; max-height: 850px"
+          >
+            <!-- Tombol Atas dengan Jarak Margin Bawah (mb-3) yang Rapih -->
+            <div class="w-100 d-flex justify-content-end gap-2 mb-3 flex-shrink-0">
+              <button
+                id="addQueueBtn"
+                class="btn btn-sm btn-outline-secondary text-white rounded-pill px-3 shadow-sm border-opacity-50"
+                style="background: rgba(0, 0, 0, 0.4)"
+                title="Tambah Lagu Ini ke Antrean"
+              >
+                <i class="bi bi-plus-lg me-1"></i>Antrean
+              </button>
+              <button
+                id="openPlaylistModalBtn"
+                class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm"
+                title="Simpan ke Folder Playlist"
+              >
+                <i class="bi bi-folder-plus me-1"></i>Playlist
+              </button>
+            </div>
+
+            <div class="d-flex flex-column align-items-center text-center w-100">
+              <div class="cover-wrapper mb-3 position-relative">
+                <img id="npCover" class="cover-art shadow-lg" src="" crossorigin="anonymous" />
+                <button id="likeBtn" class="like-btn shadow" title="Lagu Disukai">
+                  <i class="bi bi-heart"></i>
+                </button>
+              </div>
+              <h3 id="npTitle" class="fw-bold w-100 text-truncate px-2 mb-1">Judul Lagu</h3>
+              <p class="text-white-50 small mb-0">192kHz/32-bit Resampled Audio</p>
+            </div>
+
+            <div
+              class="visualizer-wrapper w-100 flex-grow-1 d-flex align-items-center my-2 position-relative"
+              style="min-height: 50px; max-height: 100px"
+            >
+              <canvas
+                id="visualizerCanvas"
+                class="position-absolute top-0 start-0 w-100 h-100"
+              ></canvas>
+            </div>
+
+            <div class="controls-area w-100 mt-auto">
+              <div
+                class="d-flex justify-content-between text-white-50 small mb-2 fw-bold font-monospace"
+              >
                 <span id="currentTimeDisplay">0:00</span>
-                <div class="progress-bar-wrapper" id="progressBarWrapper">
-                  <div class="progress-fill" id="progressFill"></div>
-                </div>
                 <span id="durationDisplay">0:00</span>
               </div>
-
-              <div class="main-controls">
-                <button class="play-pause-btn" id="playPauseBtn">⏸</button>
-                <button class="next-btn" id="nextTrackBtn" title="Lagu Selanjutnya">⏭</button>
+              <div class="progress-bar-wrapper shadow-sm mb-4" id="progressBarWrapper">
+                <div class="progress-fill" id="progressFill"></div>
               </div>
 
-              <!-- Volume Slider Baru -->
-              <div
-                class="volume-container mt-3 d-flex align-items-center justify-content-center gap-2"
-              >
-                <span style="font-size: 0.8rem; color: #aaa">🔈</span>
-                <input
-                  type="range"
-                  id="volumeSlider"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value="1"
-                  style="width: 100px; height: 4px; accent-color: #1db954"
-                />
-                <span style="font-size: 0.8rem; color: #aaa">🔊</span>
+              <div class="d-flex justify-content-center align-items-center gap-3 gap-sm-4 mb-4">
+                <button class="control-btn" id="shuffleBtn" title="Putar Acak">
+                  <i class="bi bi-shuffle"></i>
+                </button>
+                <button class="control-btn fs-2" id="prevTrackBtn" title="Sebelumnya">
+                  <i class="bi bi-skip-start-fill"></i>
+                </button>
+                <button class="play-pause-btn shadow-lg" id="playPauseBtn">
+                  <i class="bi bi-pause-fill"></i>
+                </button>
+                <button class="control-btn fs-2" id="nextTrackBtn" title="Selanjutnya">
+                  <i class="bi bi-skip-end-fill"></i>
+                </button>
+                <button class="control-btn" id="repeatBtn" title="Ulangi">
+                  <i class="bi bi-repeat"></i
+                  ><span id="repeatBadge" class="repeat-badge d-none">1</span>
+                </button>
+              </div>
+
+              <div class="d-flex justify-content-center gap-3 w-100 mt-2">
+                <button
+                  class="btn btn-dark bg-black bg-opacity-50 rounded-pill px-4 btn-sm border-secondary fw-bold"
+                  id="toggleEqBtn"
+                >
+                  <i class="bi bi-sliders me-2"></i>AE
+                </button>
+                <button
+                  class="btn btn-light rounded-pill px-4 btn-sm fw-bold shadow-sm"
+                  id="toggleLyricsBtn"
+                >
+                  <i class="bi bi-mic-fill me-2"></i>Lyric
+                </button>
               </div>
             </div>
 
-            <audio id="audioPlayer" crossorigin="anonymous"></audio>
-
-            <button class="btn btn-sm btn-outline-light mt-4 rounded-pill px-3" id="toggleEqBtn">
-              🎛️ DSP Equalizer
-            </button>
-
-            <div class="eq-panel" id="eqPanel">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-bold text-white small">Equalizer</span>
-                <select
-                  class="form-select form-select-sm bg-dark text-white border-secondary"
-                  style="width: auto; font-size: 0.75rem"
-                  id="eqPreset"
+            <!-- OVERLAY LIRIK -->
+            <div id="lyricsOverlay" class="custom-overlay d-none d-flex flex-column p-4">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-secondary border-opacity-50"
+              >
+                <span class="fw-bold text-white-50 tracking-widest uppercase small"
+                  ><i class="bi bi-mic-fill me-2"></i>Lyric</span
                 >
-                  <option value="flat">Flat</option>
+                <button class="btn-close btn-close-white" id="closeLyricsBtn"></button>
+              </div>
+              <div
+                class="lyrics-container flex-grow-1 text-center px-1 py-3 custom-scrollbar"
+                id="lyricsContainer"
+              >
+                <div class="h-100 d-flex align-items-center justify-content-center">
+                  <p class="text-white-50 fs-5 mb-0">Menunggu lagu diputar...</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- OVERLAY AE (AUDIO EQUALIZER) -->
+            <div id="eqOverlay" class="custom-overlay d-none d-flex flex-column p-4">
+              <div
+                class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-50"
+              >
+                <span class="fw-bold tracking-widest uppercase small text-white-50"
+                  ><i class="bi bi-sliders me-2"></i>Audio Equalizer (AE)</span
+                >
+                <button class="btn-close btn-close-white" id="closeEqBtn"></button>
+              </div>
+              <div class="mb-4 text-center">
+                <select
+                  class="form-select bg-dark text-white border-0 shadow-sm mx-auto"
+                  id="eqPreset"
+                  style="max-width: 250px"
+                >
+                  <option value="flat">Flat (Default)</option>
                   <option value="bass">Bass Boost</option>
-                  <option value="vocal">Vokal Jernih</option>
-                  <option value="vshape">V-Shape</option>
+                  <option value="vocal">Vocal Clarity</option>
+                  <option value="vshape">V-Shape (Pop/Rock)</option>
                 </select>
               </div>
-              <div class="eq-slider-container">
+              <div class="d-flex justify-content-around align-items-end flex-grow-1 mb-3 px-2">
                 <div class="eq-band">
-                  <input
-                    type="range"
-                    orient="vertical"
-                    class="eq-slider"
-                    id="eq-60"
-                    min="-12"
-                    max="12"
-                    value="0"
-                  /><span class="eq-label">60Hz</span>
+                  <input type="range" orient="vertical" id="eq-60" min="-12" max="12" value="0" />
+                  <div class="eq-label">60</div>
                 </div>
                 <div class="eq-band">
-                  <input
-                    type="range"
-                    orient="vertical"
-                    class="eq-slider"
-                    id="eq-230"
-                    min="-12"
-                    max="12"
-                    value="0"
-                  /><span class="eq-label">230Hz</span>
+                  <input type="range" orient="vertical" id="eq-230" min="-12" max="12" value="0" />
+                  <div class="eq-label">230</div>
                 </div>
                 <div class="eq-band">
-                  <input
-                    type="range"
-                    orient="vertical"
-                    class="eq-slider"
-                    id="eq-910"
-                    min="-12"
-                    max="12"
-                    value="0"
-                  /><span class="eq-label">910Hz</span>
+                  <input type="range" orient="vertical" id="eq-910" min="-12" max="12" value="0" />
+                  <div class="eq-label">910</div>
                 </div>
                 <div class="eq-band">
-                  <input
-                    type="range"
-                    orient="vertical"
-                    class="eq-slider"
-                    id="eq-3k"
-                    min="-12"
-                    max="12"
-                    value="0"
-                  /><span class="eq-label">3kHz</span>
+                  <input type="range" orient="vertical" id="eq-3k" min="-12" max="12" value="0" />
+                  <div class="eq-label">3k</div>
                 </div>
                 <div class="eq-band">
-                  <input
-                    type="range"
-                    orient="vertical"
-                    class="eq-slider"
-                    id="eq-14k"
-                    min="-12"
-                    max="12"
-                    value="0"
-                  /><span class="eq-label">14kHz</span>
+                  <input type="range" orient="vertical" id="eq-14k" min="-12" max="12" value="0" />
+                  <div class="eq-label">14k</div>
                 </div>
               </div>
             </div>
-
-            <div class="queue-section" id="queueSection">
-              <div class="queue-header">Akan Diputar Selanjutnya:</div>
-              <div id="queueList"></div>
-            </div>
           </div>
         </div>
-
-        <div class="lyrics-sidebar">
-          <div class="lyrics-card">
-            <h6 class="text-white-50 fw-bold border-bottom border-secondary pb-2 mb-3">
-              🎤 Live Lyrics
-            </h6>
-            <div class="lyrics-container" id="lyricsContainer">
-              <p class="text-white-50 mt-5 small">Memuat lirik...</p>
-            </div>
-          </div>
-        </div>
+        <audio id="audioPlayer" crossorigin="anonymous" class="d-none"></audio>
       </div>
 
-      <div class="history-section" id="historySection" style="display: none">
+      <!-- MODAL PILIH PLAYLIST FOLDER -->
+      <div
+        id="playlistModal"
+        class="custom-overlay d-none d-flex align-items-center justify-content-center p-3"
+        style="
+          position: fixed;
+          z-index: 3000;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(10px);
+        "
+      >
         <div
-          class="d-flex justify-content-between align-items-end mb-3 border-bottom border-secondary pb-2"
+          class="glass-card p-4 w-100 shadow-lg border-secondary"
+          style="max-width: 400px; border-radius: 20px"
         >
-          <h6 class="text-white-50 mb-0 fw-bold">🕒 Terakhir Diputar</h6>
-          <button
-            class="btn btn-sm btn-link text-danger text-decoration-none p-0 fw-bold"
-            id="clearHistoryBtn"
+          <div
+            class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-3"
           >
-            Bersihkan
-          </button>
+            <h6 class="fw-bold mb-0 text-white">
+              <i class="bi bi-folder-plus me-2"></i>Simpan ke Folder Playlist
+            </h6>
+            <button class="btn-close btn-close-white" id="closePlaylistModalBtn"></button>
+          </div>
+
+          <label class="small text-white-50 mb-2">Pilih Folder Anda:</label>
+          <div
+            id="existingFoldersList"
+            class="d-flex flex-column gap-2 overflow-y-auto custom-scrollbar"
+            style="max-height: 250px"
+          >
+            <!-- Folder yang sudah ada muncul di sini -->
+          </div>
+          <div id="playlistStatusText" class="small mt-3 text-warning text-center fw-bold"></div>
         </div>
-        <div id="historyList"></div>
       </div>
     </div>
-
     <script src="app.js"></script>
   </body>
 </html>
