@@ -27,7 +27,6 @@
     >
       <!-- SIDEBAR -->
       <div id="sidebar" class="sidebar d-flex flex-column p-3 p-md-4">
-        <!-- Header Sidebar -->
         <div class="brand-header text-left mb-4" style="margin-left: 55px; margin-top: 5px">
           <h3 class="brand-title m-0">dazo-musicyt</h3>
           <p class="text-white-50 small mt-1 mb-0 tracking-widest" style="font-size: 0.65rem">
@@ -35,7 +34,6 @@
           </p>
         </div>
 
-        <!-- FORM PENCARIAN -->
         <div class="search-box mb-3">
           <div
             class="input-group shadow-sm border border-secondary border-opacity-25 rounded overflow-hidden"
@@ -53,7 +51,6 @@
           <div id="statusText" class="text-center small mt-2 text-warning fw-bold"></div>
         </div>
 
-        <!-- SEKAT PEMISAH -->
         <div class="w-100 border-bottom border-secondary border-opacity-25 mb-4"></div>
 
         <div class="sidebar-scrollable flex-grow-1 overflow-y-auto pe-2 custom-scrollbar">
@@ -62,7 +59,6 @@
             <div id="resultsList" class="d-flex flex-column gap-2"></div>
           </div>
 
-          <!-- FORM PEMBUATAN PLAYLIST -->
           <div class="search-box mb-4">
             <h6 class="section-title mb-2 text-warning">
               <i class="bi bi-folder-plus me-2"></i>Buat Playlist Baru
@@ -82,11 +78,9 @@
             </div>
             <div id="sidebarPlaylistStatus" class="small text-warning fw-bold mb-2"></div>
 
-            <!-- Kontainer Folder Playlist Buatan Sendiri -->
             <div id="customPlaylistsContainer" class="d-flex flex-column gap-2 mt-3"></div>
           </div>
 
-          <!-- Folder: Lagu Disukai -->
           <div class="sidebar-folder mb-4 mt-2 border-top border-secondary border-opacity-25 pt-3">
             <div
               class="folder-header d-flex justify-content-between align-items-center mb-2"
@@ -111,7 +105,6 @@
             </div>
           </div>
 
-          <!-- Folder: Antrean Berikutnya -->
           <div class="sidebar-folder mb-4">
             <div
               class="folder-header d-flex justify-content-between align-items-center mb-2"
@@ -136,7 +129,6 @@
             </div>
           </div>
 
-          <!-- Folder: Terakhir Diputar -->
           <div class="sidebar-folder">
             <div
               class="folder-header d-flex justify-content-between align-items-center mb-2"
@@ -164,7 +156,7 @@
       <!-- MAIN PANEL -->
       <div
         id="mainPanel"
-        class="main-panel position-relative d-flex align-items-center justify-content-center h-100 overflow-hidden w-100"
+        class="main-panel position-relative d-flex align-items-center justify-content-center h-100 overflow-y-auto custom-scrollbar w-100"
       >
         <div id="emptyState" class="empty-state text-center text-white-50 fade-in w-100">
           <h1 class="display-1 opacity-25 mb-4"><i class="bi bi-music-note-beamed"></i></h1>
@@ -174,15 +166,14 @@
 
         <div
           id="playerSection"
-          class="w-100 d-none fade-in h-100 d-flex align-items-center justify-content-center p-3 p-md-4"
+          class="w-100 d-none fade-in d-flex align-items-center justify-content-center p-2 p-sm-3 p-md-4"
+          style="min-height: 100%"
         >
           <div
             id="playerCard"
-            class="glass-card position-relative shadow-lg d-flex flex-column align-items-center p-4 p-md-4 w-100"
-            style="max-width: 600px; height: 100%; max-height: 850px"
+            class="glass-card player-card-responsive position-relative shadow-lg d-flex flex-column align-items-center p-3 p-sm-4 p-md-5 w-100 mx-auto my-auto"
           >
-            <!-- Tombol Atas dengan Jarak Margin Bawah (mb-3) yang Rapih -->
-            <div class="w-100 d-flex justify-content-end gap-2 mb-3 flex-shrink-0">
+            <div class="w-100 d-flex justify-content-end gap-2 mb-3 flex-wrap flex-shrink-0">
               <button
                 id="addQueueBtn"
                 class="btn btn-sm btn-outline-secondary text-white rounded-pill px-3 shadow-sm border-opacity-50"
@@ -202,7 +193,13 @@
 
             <div class="d-flex flex-column align-items-center text-center w-100">
               <div class="cover-wrapper mb-3 position-relative">
-                <img id="npCover" class="cover-art shadow-lg" src="" crossorigin="anonymous" />
+                <!-- Tambahan data:image transparan agar ikon gambar tidak pecah sebelum memuat gambar -->
+                <img
+                  id="npCover"
+                  class="cover-art shadow-lg"
+                  src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                  crossorigin="anonymous"
+                />
                 <button id="likeBtn" class="like-btn shadow" title="Lagu Disukai">
                   <i class="bi bi-heart"></i>
                 </button>
@@ -251,7 +248,7 @@
                 </button>
               </div>
 
-              <div class="d-flex justify-content-center gap-3 w-100 mt-2">
+              <div class="d-flex justify-content-center gap-3 w-100 mt-2 flex-wrap">
                 <button
                   class="btn btn-dark bg-black bg-opacity-50 rounded-pill px-4 btn-sm border-secondary fw-bold"
                   id="toggleEqBtn"
@@ -267,7 +264,6 @@
               </div>
             </div>
 
-            <!-- OVERLAY LIRIK -->
             <div id="lyricsOverlay" class="custom-overlay d-none d-flex flex-column p-4">
               <div
                 class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-secondary border-opacity-50"
@@ -287,7 +283,6 @@
               </div>
             </div>
 
-            <!-- OVERLAY AE (AUDIO EQUALIZER) -->
             <div id="eqOverlay" class="custom-overlay d-none d-flex flex-column p-4">
               <div
                 class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-50"
@@ -337,7 +332,6 @@
         <audio id="audioPlayer" crossorigin="anonymous" class="d-none"></audio>
       </div>
 
-      <!-- MODAL PILIH PLAYLIST FOLDER -->
       <div
         id="playlistModal"
         class="custom-overlay d-none d-flex align-items-center justify-content-center p-3"
@@ -366,9 +360,7 @@
             id="existingFoldersList"
             class="d-flex flex-column gap-2 overflow-y-auto custom-scrollbar"
             style="max-height: 250px"
-          >
-            <!-- Folder yang sudah ada muncul di sini -->
-          </div>
+          ></div>
           <div id="playlistStatusText" class="small mt-3 text-warning text-center fw-bold"></div>
         </div>
       </div>

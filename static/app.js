@@ -71,8 +71,6 @@ let playQueue = [];
 let previousQueue = [];
 let isSeeking = false;
 let currentTrackObj = null;
-
-// VARIABEL BARU UNTUK TARGET LAGU PLAYLIST
 let trackToAddToPlaylist = null;
 
 let isShuffle = false;
@@ -325,7 +323,6 @@ function renderSidebarCustomPlaylists() {
   }
 }
 
-// Event pembuatan folder dari dalam sidebar
 createSidebarFolderBtn.addEventListener('click', () => {
   const name = newSidebarFolderName.value.trim();
   if (!name) return;
@@ -399,7 +396,6 @@ function addTrackToFolder(folderName) {
   }
 }
 
-// --- AKSI TAMBAHAN DI PEMUTAR ---
 addQueueBtn.addEventListener('click', () => {
   if (currentTrackObj) {
     playQueue.push(currentTrackObj);

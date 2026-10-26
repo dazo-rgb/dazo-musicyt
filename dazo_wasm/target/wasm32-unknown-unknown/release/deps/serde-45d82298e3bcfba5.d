@@ -1,0 +1,14 @@
+/home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/deps/serde-45d82298e3bcfba5.d: /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/build/serde-d78f8cebfbaf8683/out/private.rs
+
+/home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/deps/libserde-45d82298e3bcfba5.rlib: /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/build/serde-d78f8cebfbaf8683/out/private.rs
+
+/home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/deps/libserde-45d82298e3bcfba5.rmeta: /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/build/serde-d78f8cebfbaf8683/out/private.rs
+
+/home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/dazo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/build/serde-d78f8cebfbaf8683/out/private.rs:
+
+# env-dep:OUT_DIR=/home/dazo/dazo-musicyt/dazo_wasm/target/wasm32-unknown-unknown/release/build/serde-d78f8cebfbaf8683/out
