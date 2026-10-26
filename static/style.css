@@ -63,8 +63,9 @@ body {
   padding-left: 0;
 }
 
+/* Hamburger Button diubah menjadi FIXED agar selalu responsif */
 .toggle-btn {
-  position: absolute;
+  position: fixed;
   top: 15px;
   left: 15px;
   z-index: 2000;
@@ -162,6 +163,42 @@ body {
   padding-right: 5px;
 }
 
+/* Tambahan Style Baru */
+.time-badge {
+  font-size: 0.65rem;
+  color: #1db954;
+  font-weight: bold;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.delete-track-btn {
+  opacity: 0.5;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+.delete-track-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+.history-month-header,
+.history-day-header {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+.history-month-header:hover,
+.history-day-header:hover {
+  opacity: 0.7;
+}
+.folder-title-text {
+  display: inline-block;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
 .add-queue-icon-btn,
 .add-playlist-icon-btn {
   background: none;
@@ -209,7 +246,6 @@ body {
   margin: auto;
 }
 
-/* Pembungkus Album diubah menjadi inline-block agar presisi memeluk gambar */
 .cover-wrapper {
   position: relative;
   display: inline-block;
@@ -227,7 +263,6 @@ body {
   transform: scale(1.02);
 }
 
-/* Base ukuran Tombol Love untuk Desktop/Laptop */
 .like-btn {
   position: absolute;
   bottom: 12px;
@@ -398,7 +433,6 @@ canvas {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 10px;
 }
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -410,10 +444,7 @@ canvas {
   }
 }
 
-/* ========================================================
-   MEDIA QUERIES - FULLY RESPONSIVE (LAPTOP, TABLET, HP)
-   ======================================================== */
-
+/* RESPONSIVE */
 @media (max-width: 991px) {
   .main-panel {
     padding-left: 0 !important;
@@ -422,8 +453,6 @@ canvas {
     box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
   }
 }
-
-/* TABLET */
 @media (max-width: 767px) {
   .player-card-responsive {
     border-radius: 25px;
@@ -435,7 +464,6 @@ canvas {
   .cover-art {
     width: 220px;
   }
-  /* Tombol Love mengecil secara proporsional */
   .like-btn {
     width: 42px;
     height: 42px;
@@ -444,8 +472,6 @@ canvas {
     right: 10px;
   }
 }
-
-/* SMARTPHONE (HP) */
 @media (max-width: 575px) {
   .sidebar {
     width: 100%;
@@ -454,7 +480,6 @@ canvas {
   .brand-header {
     margin-left: 50px !important;
   }
-
   .player-card-responsive {
     border-radius: 20px;
     min-height: 500px;
@@ -465,11 +490,9 @@ canvas {
     border-radius: 20px;
     padding: 1.25rem !important;
   }
-
   .cover-art {
     width: 180px;
   }
-  /* Tombol Love semakin kecil dan merapat ke ujung pada HP */
   .like-btn {
     width: 38px;
     height: 38px;
@@ -477,7 +500,6 @@ canvas {
     bottom: 8px;
     right: 8px;
   }
-
   .play-pause-btn {
     width: 60px;
     height: 60px;
@@ -493,15 +515,12 @@ canvas {
     top: 12px;
     left: 12px;
   }
-
   #toggleEqBtn,
   #toggleLyricsBtn {
     padding: 0.3rem 1rem !important;
     font-size: 0.8rem;
   }
 }
-
-/* SMARTPHONE LAYAR PENDEK / LANDSCAPE */
 @media (max-height: 720px) {
   .player-card-responsive {
     height: auto;
@@ -515,7 +534,6 @@ canvas {
   .cover-art {
     width: 140px;
   }
-  /* Tombol Love untuk tampilan Landscape */
   .like-btn {
     width: 32px;
     height: 32px;

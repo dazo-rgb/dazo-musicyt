@@ -12,7 +12,7 @@ const npCover = document.getElementById('npCover');
 const npTitle = document.getElementById('npTitle');
 const audioPlayer = document.getElementById('audioPlayer');
 
-// Kontrol Player & Aksi Ekstra
+// Kontrol Player
 const playPauseBtn = document.getElementById('playPauseBtn');
 const nextTrackBtn = document.getElementById('nextTrackBtn');
 const prevTrackBtn = document.getElementById('prevTrackBtn');
@@ -21,7 +21,6 @@ const repeatBtn = document.getElementById('repeatBtn');
 const repeatBadge = document.getElementById('repeatBadge');
 const addQueueBtn = document.getElementById('addQueueBtn');
 const likeBtn = document.getElementById('likeBtn');
-
 const progressBarWrapper = document.getElementById('progressBarWrapper');
 const progressFill = document.getElementById('progressFill');
 const currentTimeDisplay = document.getElementById('currentTimeDisplay');
@@ -59,6 +58,8 @@ const playlistStatusText = document.getElementById('playlistStatusText');
 const newSidebarFolderName = document.getElementById('newSidebarFolderName');
 const createSidebarFolderBtn = document.getElementById('createSidebarFolderBtn');
 const sidebarPlaylistStatus = document.getElementById('sidebarPlaylistStatus');
+const modalNewFolderName = document.getElementById('modalNewFolderName');
+const modalCreateFolderBtn = document.getElementById('modalCreateFolderBtn');
 
 let audioContext,
   sourceNode,
@@ -67,32 +68,49 @@ let audioContext,
   isAudioInitialized = false;
 let visualizerColor = 'rgb(29, 185, 84)';
 let syncedLyricsData = [];
-let playQueue = [];
-let previousQueue = [];
-let isSeeking = false;
-let currentTrackObj = null;
-let trackToAddToPlaylist = null;
-
-let isShuffle = false;
-let repeatMode = 0;
-let currentRepeatCount = 0;
+let playQueue = [],
+  previousQueue = [];
+let isSeeking = false,
+  currentTrackObj = null,
+  trackToAddToPlaylist = null;
+let isShuffle = false,
+  repeatMode = 0,
+  currentRepeatCount = 0;
 const LYRICS_OFFSET = -0.4;
 
-// --- SIDEBAR TOGGLE ---
+// --- SIDEBAR TOGGLE & AUTO-CLOSE ---
 toggleSidebarBtn.addEventListener('click', () => {
   sidebar.classList.toggle('closed');
 });
 function autoCollapseSidebar() {
   if (window.innerWidth < 992) sidebar.classList.add('closed');
 }
+document.addEventListener('click', (e) => {
+  // Jika sidebar dalam keadaan terbuka
+  if (!sidebar.classList.contains('closed')) {
+    // Jika klik BUKAN pada sidebar dan BUKAN pada tombol toggle (hamburger)
+    if (!sidebar.contains(e.target) && !toggleSidebarBtn.contains(e.target)) {
+      // Abaikan jika klik terjadi di dalam modal playlist overlay
+      if (!playlistModal.classList.contains('d-none') && playlistModal.contains(e.target)) return;
+      // Tutup otomatis!
+      sidebar.classList.add('closed');
+    }
+  }
+});
 
-// --- FOLDER ACCORDION LOGIC ---
+// --- FOLDER ACCORDION LOGIC (SAFE BINDING) ---
 function bindAccordion(element) {
-  element.addEventListener('click', () => {
+  if (!element || element.dataset.bound === 'true') return;
+  element.dataset.bound = 'true';
+  element.addEventListener('click', (e) => {
+    // Cegah toggle buka-tutup saat menekan tombol seperti rename atau hapus
+    if (e.target.closest('button') || e.target.closest('input')) return;
     const targetId = element.getAttribute('data-target');
     const iconId = element.getAttribute('data-icon');
-    document.getElementById(targetId).classList.toggle('d-none');
-    document.getElementById(iconId).classList.toggle('rotate-180');
+    const targetEl = document.getElementById(targetId);
+    const iconEl = document.getElementById(iconId);
+    if (targetEl) targetEl.classList.toggle('d-none');
+    if (iconEl) iconEl.classList.toggle('rotate-180');
   });
 }
 document.querySelectorAll('.folder-header').forEach((header) => bindAccordion(header));
@@ -125,25 +143,39 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// --- LIST RENDERER (DENGAN TOMBOL + ANTREAN & + PLAYLIST) ---
-function createListItem(track, isQueue = false, showAddBtn = true) {
+// --- LIST RENDERER ---
+function createListItem(
+  track,
+  isQueue = false,
+  showAddBtn = true,
+  timeStr = null,
+  deleteCallback = null,
+) {
   const div = document.createElement('div');
   div.className = `list-item shadow-sm ${isQueue ? 'list-item-queued' : ''}`;
   if (isQueue) div.style.borderLeftColor = visualizerColor;
 
-  let addBtnHtml = '';
+  let btnHtml = '';
   if (showAddBtn) {
-    addBtnHtml = `
+    btnHtml = `
       <button class="add-playlist-icon-btn" title="Simpan ke Folder Playlist"><i class="bi bi-folder-plus"></i></button>
       <button class="add-queue-icon-btn" title="Tambahkan ke Antrean"><i class="bi bi-plus-lg"></i></button>
     `;
   }
 
+  let extraHtml = '';
+  if (timeStr) extraHtml += `<div class="time-badge ms-1">${timeStr}</div>`;
+  if (deleteCallback) {
+    extraHtml += `<button class="btn btn-link text-danger p-0 ms-2 delete-track-btn" title="Hapus"><i class="bi bi-x-lg"></i></button>`;
+  } else if (!isQueue) {
+    extraHtml += `<i class="bi bi-play-fill item-play-icon"></i>`;
+  }
+
   div.innerHTML = `
     <img src="${track.thumbnail}" class="item-thumb">
     <div class="item-title">${track.title}</div>
-    ${addBtnHtml}
-    ${isQueue ? '' : '<i class="bi bi-play-fill item-play-icon"></i>'}
+    ${btnHtml}
+    ${extraHtml}
   `;
 
   if (showAddBtn) {
@@ -166,10 +198,17 @@ function createListItem(track, isQueue = false, showAddBtn = true) {
       renderExistingFoldersInModal();
     });
   }
+
+  if (deleteCallback) {
+    div.querySelector('.delete-track-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteCallback();
+    });
+  }
   return div;
 }
 
-// --- FUNGSI PUTAR MASSAL (PLAY FOLDER) ---
+// --- FUNGSI PUTAR MASSAL ---
 function playFolderTracks(tracks, shuffle = false) {
   if (!tracks || tracks.length === 0) {
     statusText.innerHTML = `❌ Folder kosong`;
@@ -178,7 +217,6 @@ function playFolderTracks(tracks, shuffle = false) {
     }, 1500);
     return;
   }
-
   let queue = [...tracks];
   if (shuffle) {
     for (let i = queue.length - 1; i > 0; i--) {
@@ -191,20 +229,17 @@ function playFolderTracks(tracks, shuffle = false) {
     isShuffle = false;
     shuffleBtn.classList.remove('active');
   }
-
   const firstTrack = queue.shift();
   playQueue = queue;
   playSelectedTrack(firstTrack, false);
 }
 
-// Trigger untuk Putar Massal (Lagu Disukai & Antrean)
 document.getElementById('playAllLikedBtn').addEventListener('click', () => {
   playFolderTracks(getLikedSongs(), false);
 });
 document.getElementById('shuffleAllLikedBtn').addEventListener('click', () => {
   playFolderTracks(getLikedSongs(), true);
 });
-
 document.getElementById('playAllQueueBtn').addEventListener('click', () => {
   playFolderTracks(playQueue, false);
 });
@@ -221,8 +256,12 @@ function renderQueue() {
   }
   nextTrackBtn.style.opacity = '1';
   playQueue.forEach((track, index) => {
-    const item = createListItem(track, true, false);
-    item.addEventListener('click', () => {
+    const item = createListItem(track, true, false, null, () => {
+      playQueue.splice(index, 1);
+      renderQueue();
+    });
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
       playQueue = playQueue.slice(index + 1);
       playSelectedTrack(track, false);
     });
@@ -251,7 +290,7 @@ function playNextInQueue() {
   }
 }
 
-// --- FOLDER PLAYLIST KUSTOM LOGIC ---
+// --- FOLDER PLAYLIST KUSTOM ---
 function getCustomPlaylists() {
   return JSON.parse(localStorage.getItem('dazo_custom_playlists')) || {};
 }
@@ -264,12 +303,17 @@ function renderSidebarCustomPlaylists() {
   const playlists = getCustomPlaylists();
 
   for (let folderName in playlists) {
-    const folderId = 'folder-' + folderName.replace(/\s+/g, '-').toLowerCase();
+    const folderId =
+      'folder-' +
+      folderName.replace(/\s+/g, '-').toLowerCase() +
+      '-' +
+      Math.random().toString(36).substr(2, 5);
     const folderHtml = `
       <div class="sidebar-folder mb-3 border border-secondary border-opacity-25 rounded p-2">
         <div class="folder-header d-flex justify-content-between align-items-center mb-2" data-target="${folderId}" data-icon="icon-${folderId}">
-          <h6 class="section-title mb-0 text-warning"><i class="bi bi-folder-fill me-2"></i> ${folderName}</h6>
+          <h6 class="section-title mb-0 text-warning"><i class="bi bi-folder-fill me-2"></i> <span class="folder-title-text">${folderName}</span></h6>
           <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-link p-0 text-info rename-folder-btn" data-folder="${folderName}" title="Ganti Nama"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-link p-0 text-danger delete-folder-btn" data-folder="${folderName}" title="Hapus Folder"><i class="bi bi-trash"></i></button>
             <i id="icon-${folderId}" class="bi bi-chevron-down text-white-50 transition-icon"></i>
           </div>
@@ -284,8 +328,9 @@ function renderSidebarCustomPlaylists() {
       </div>
     `;
     customPlaylistsContainer.insertAdjacentHTML('beforeend', folderHtml);
-
     const wrapperElement = customPlaylistsContainer.lastElementChild;
+
+    // Bind aman tanpa merusak event listener lain
     bindAccordion(wrapperElement.querySelector('.folder-header'));
 
     wrapperElement.querySelector('.play-folder-btn').addEventListener('click', (e) => {
@@ -297,6 +342,24 @@ function renderSidebarCustomPlaylists() {
       playFolderTracks(playlists[folderName], true);
     });
 
+    // RENAME LOGIC
+    wrapperElement.querySelector('.rename-folder-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newName = prompt('Masukkan nama folder baru:', folderName);
+      if (newName && newName.trim() !== '' && newName !== folderName) {
+        let p = getCustomPlaylists();
+        if (p[newName]) {
+          alert('Nama folder sudah ada!');
+          return;
+        }
+        p[newName] = p[folderName];
+        delete p[folderName];
+        saveCustomPlaylists(p);
+        renderSidebarCustomPlaylists();
+      }
+    });
+
+    // DELETE LOGIC
     wrapperElement.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       if (confirm(`Hapus folder "${folderName}" beserta isinya?`)) {
@@ -311,8 +374,12 @@ function renderSidebarCustomPlaylists() {
     if (playlists[folderName].length === 0) {
       listContainer.innerHTML = '<div class="text-white-50 small px-2">Folder kosong</div>';
     } else {
-      playlists[folderName].forEach((track) => {
-        const item = createListItem(track, false, true);
+      playlists[folderName].forEach((track, index) => {
+        const item = createListItem(track, false, true, null, () => {
+          playlists[folderName].splice(index, 1);
+          saveCustomPlaylists(playlists);
+          renderSidebarCustomPlaylists();
+        });
         item.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           playSelectedTrack(track, false);
@@ -341,7 +408,25 @@ createSidebarFolderBtn.addEventListener('click', () => {
   renderSidebarCustomPlaylists();
 });
 
-// Modal Pop-Up Logic
+modalCreateFolderBtn.addEventListener('click', () => {
+  const name = modalNewFolderName.value.trim();
+  if (!name) return;
+  let p = getCustomPlaylists();
+  if (p[name]) {
+    playlistStatusText.textContent = 'Folder sudah ada!';
+    return;
+  }
+  p[name] = [];
+  saveCustomPlaylists(p);
+  modalNewFolderName.value = '';
+  playlistStatusText.innerHTML = `<span class="text-success"><i class="bi bi-check-lg"></i> Folder ${name} dibuat</span>`;
+  setTimeout(() => {
+    playlistStatusText.textContent = '';
+  }, 2000);
+  renderSidebarCustomPlaylists();
+  renderExistingFoldersInModal();
+});
+
 openPlaylistModalBtn.addEventListener('click', () => {
   if (!currentTrackObj) return;
   trackToAddToPlaylist = currentTrackObj;
@@ -357,13 +442,11 @@ closePlaylistModalBtn.addEventListener('click', () => {
 function renderExistingFoldersInModal() {
   existingFoldersList.innerHTML = '';
   const playlists = getCustomPlaylists();
-
   if (Object.keys(playlists).length === 0) {
     existingFoldersList.innerHTML =
-      '<div class="text-white-50 small text-center my-3">Belum ada folder. Buat folder di Sidebar terlebih dahulu.</div>';
+      '<div class="text-white-50 small text-center my-3">Belum ada folder.</div>';
     return;
   }
-
   for (let folderName in playlists) {
     const btn = document.createElement('button');
     btn.className = 'btn btn-outline-secondary w-100 text-start text-white border-secondary mb-1';
@@ -408,7 +491,7 @@ addQueueBtn.addEventListener('click', () => {
   }
 });
 
-// Lagu Disukai (Heart)
+// --- LIKED SONGS ---
 function getLikedSongs() {
   return JSON.parse(localStorage.getItem('dazo_liked')) || [];
 }
@@ -419,8 +502,13 @@ function renderPlaylist() {
     playlistList.innerHTML = '<div class="text-white-50 small px-2">Belum ada lagu disukai</div>';
     return;
   }
-  liked.forEach((track) => {
-    const item = createListItem(track, false, true);
+  liked.forEach((track, index) => {
+    const item = createListItem(track, false, true, null, () => {
+      liked.splice(index, 1);
+      localStorage.setItem('dazo_liked', JSON.stringify(liked));
+      checkLikedStatus();
+      renderPlaylist();
+    });
     item.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
       playSelectedTrack(track, false);
@@ -457,7 +545,7 @@ function checkLikedStatus() {
 }
 likeBtn.addEventListener('click', toggleLike);
 
-// --- REPEAT, SHUFFLE & PREVIOUS LOGIC ---
+// --- REPEAT, SHUFFLE & PREVIOUS ---
 shuffleBtn.addEventListener('click', () => {
   isShuffle = !isShuffle;
   shuffleBtn.classList.toggle('active', isShuffle);
@@ -499,7 +587,6 @@ nextTrackBtn.addEventListener('click', () => {
   currentRepeatCount = 0;
   if (playQueue.length > 0) playNextInQueue();
 });
-
 prevTrackBtn.addEventListener('click', () => {
   if (audioPlayer.currentTime > 4 || previousQueue.length === 0) {
     audioPlayer.currentTime = 0;
@@ -553,7 +640,7 @@ function updateProgress(e) {
   }
 }
 
-// --- DSP AUDIO CONTEXT (AE) ---
+// --- DSP AUDIO CONTEXT ---
 function initAudioContext() {
   if (isAudioInitialized) return;
   try {
@@ -726,6 +813,17 @@ npCover.addEventListener('load', () => {
 function getHistory() {
   return JSON.parse(localStorage.getItem('dazo_history')) || [];
 }
+
+function addToHistory(track) {
+  let history = getHistory().filter((item) => item.webpage_url !== track.webpage_url);
+  // Tambahkan timestamp saat lagu diputar
+  const newRecord = { ...track, timestamp: Date.now() };
+  history.unshift(newRecord);
+  if (history.length > 1000) history.pop(); // Simpan riwayat hingga 1000 lagu
+  localStorage.setItem('dazo_history', JSON.stringify(history));
+  renderHistory();
+}
+
 function renderHistory() {
   const history = getHistory();
   const historyList = document.getElementById('historyList');
@@ -734,24 +832,64 @@ function renderHistory() {
     historyList.innerHTML = '<div class="text-white-50 small px-2">Riwayat kosong</div>';
     return;
   }
+
+  // Grup data spesifik berdasarkan "Hari"
+  const grouped = {};
   history.forEach((track) => {
-    const item = createListItem(track, false, true);
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
-      playSelectedTrack(track, true);
+    const d = new Date(track.timestamp || Date.now());
+    // Format: "Senin, 26 Oktober 2026"
+    const dayKey = d.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
     });
-    historyList.appendChild(item);
+    const timeKey = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+    if (!grouped[dayKey]) grouped[dayKey] = [];
+    grouped[dayKey].push({ ...track, timePlayed: timeKey });
   });
+
+  let isFirstDay = true;
+  for (let day in grouped) {
+    const dayId = 'history-day-' + Math.random().toString(36).substr(2, 5);
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'sidebar-folder mb-2 border border-secondary border-opacity-25 rounded p-2';
+
+    // Header berbentuk folder untuk setiap harinya
+    dayDiv.innerHTML = `
+      <div class="folder-header d-flex justify-content-between align-items-center" data-target="${dayId}" data-icon="icon-${dayId}">
+        <h6 class="section-title mb-0 text-white-50" style="text-transform:none; font-size:0.8rem;">
+          <i class="bi bi-calendar-event me-2"></i>${day}
+        </h6>
+        <i id="icon-${dayId}" class="bi bi-chevron-down text-white-50 transition-icon ${isFirstDay ? 'rotate-180' : ''}"></i>
+      </div>
+      <div id="${dayId}" class="folder-content d-flex flex-column gap-2 mt-2 ${isFirstDay ? '' : 'd-none'}"></div>
+    `;
+
+    const tracksContainer = dayDiv.querySelector(`#${dayId}`);
+
+    // Bind accordion agar folder hari bisa dibuka/tutup
+    bindAccordion(dayDiv.querySelector('.folder-header'));
+
+    // Masukkan daftar lagu ke dalam folder hari tersebut
+    grouped[day].forEach((track) => {
+      const item = createListItem(track, false, true, track.timePlayed);
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        playSelectedTrack(track, true);
+      });
+      tracksContainer.appendChild(item);
+    });
+
+    historyList.appendChild(dayDiv);
+    isFirstDay = false;
+  }
 }
-function addToHistory(track) {
-  let history = getHistory().filter((item) => item.webpage_url !== track.webpage_url);
-  history.unshift(track);
-  if (history.length > 15) history.pop();
-  localStorage.setItem('dazo_history', JSON.stringify(history));
-  renderHistory();
-}
-document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-  if (confirm('Hapus seluruh riwayat?')) {
+
+document.getElementById('clearHistoryBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (confirm('Hapus seluruh riwayat putar?')) {
     localStorage.removeItem('dazo_history');
     renderHistory();
   }

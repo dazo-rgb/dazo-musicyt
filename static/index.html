@@ -51,9 +51,31 @@
         <div class="w-100 border-bottom border-secondary border-opacity-25 mb-4"></div>
 
         <div class="sidebar-scrollable flex-grow-1 overflow-y-auto pe-2 custom-scrollbar">
-          <div id="searchResultsContainer" class="d-none mb-4">
-            <h6 class="section-title">Hasil Pencarian</h6>
-            <div id="resultsList" class="d-flex flex-column gap-2"></div>
+          <!-- FOLDER PENCARIAN -->
+          <div
+            id="searchResultsContainer"
+            class="sidebar-folder mb-4 d-none border border-success border-opacity-25 rounded p-2"
+          >
+            <div
+              class="folder-header d-flex justify-content-between align-items-center mb-2"
+              data-target="resultsListWrapper"
+              data-icon="icon-search"
+            >
+              <h6 class="section-title mb-0 text-success">
+                <i class="bi bi-search me-2"></i> Hasil Pencarian
+              </h6>
+              <i
+                id="icon-search"
+                class="bi bi-chevron-down text-white-50 transition-icon rotate-180"
+              ></i>
+            </div>
+            <div
+              id="resultsListWrapper"
+              class="folder-content overflow-y-auto custom-scrollbar"
+              style="max-height: 400px; padding-right: 5px"
+            >
+              <div id="resultsList" class="d-flex flex-column gap-2"></div>
+            </div>
           </div>
 
           <div class="search-box mb-4">
@@ -74,7 +96,6 @@
               </button>
             </div>
             <div id="sidebarPlaylistStatus" class="small text-warning fw-bold mb-2"></div>
-
             <div id="customPlaylistsContainer" class="d-flex flex-column gap-2 mt-3"></div>
           </div>
 
@@ -126,25 +147,29 @@
             </div>
           </div>
 
+          <!-- RIWAYAT TERAKHIR DIPUTAR -->
           <div class="sidebar-folder">
             <div
               class="folder-header d-flex justify-content-between align-items-center mb-2"
-              data-target="historyList"
+              data-target="historyListWrapper"
               data-icon="icon-history"
             >
               <h6 class="section-title mb-0 text-secondary">
                 <i class="bi bi-clock-history me-2"></i> Terakhir Diputar
               </h6>
-              <i id="icon-history" class="bi bi-chevron-down text-white-50 transition-icon"></i>
+              <div class="d-flex align-items-center gap-2">
+                <button
+                  class="btn btn-link p-0 text-danger"
+                  id="clearHistoryBtn"
+                  title="Kosongkan Riwayat"
+                >
+                  <i class="bi bi-trash fs-6"></i>
+                </button>
+                <i id="icon-history" class="bi bi-chevron-down text-white-50 transition-icon"></i>
+              </div>
             </div>
-            <div id="historyList" class="d-flex flex-column gap-2 folder-content"></div>
-            <div class="text-end mt-2">
-              <button
-                class="btn btn-link btn-sm text-danger text-decoration-none p-0 fw-bold"
-                id="clearHistoryBtn"
-              >
-                Kosongkan Riwayat
-              </button>
+            <div id="historyListWrapper" class="folder-content">
+              <div id="historyList" class="d-flex flex-column gap-2 mt-2"></div>
             </div>
           </div>
         </div>
@@ -330,6 +355,7 @@
         <audio id="audioPlayer" crossorigin="anonymous" class="d-none"></audio>
       </div>
 
+      <!-- MODAL PLAYLIST -->
       <div
         id="playlistModal"
         class="custom-overlay d-none d-flex align-items-center justify-content-center p-3"
@@ -351,6 +377,21 @@
               <i class="bi bi-folder-plus me-2"></i>Simpan ke Folder Playlist
             </h6>
             <button class="btn-close btn-close-white" id="closePlaylistModalBtn"></button>
+          </div>
+
+          <div class="mb-3 border-bottom border-secondary pb-3">
+            <label class="small text-white-50 mb-2">Buat Folder Baru:</label>
+            <div class="input-group input-group-sm">
+              <input
+                type="text"
+                id="modalNewFolderName"
+                class="form-control bg-dark text-white border-0 shadow-none px-2 py-1"
+                placeholder="Nama folder..."
+              />
+              <button class="btn btn-success fw-bold" id="modalCreateFolderBtn">
+                <i class="bi bi-plus-lg"></i> Buat
+              </button>
+            </div>
           </div>
 
           <label class="small text-white-50 mb-2">Pilih Folder Anda:</label>

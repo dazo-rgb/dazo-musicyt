@@ -201,7 +201,7 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, a.config.YtDLPPath, "--force-ipv4", "--js-runtimes", a.config.JSRuntime, "--no-warnings", "--no-playlist", "--dump-json", "--flat-playlist", fmt.Sprintf("ytsearch5:%s", query))
+	cmd := exec.CommandContext(ctx, a.config.YtDLPPath, "--force-ipv4", "--js-runtimes", a.config.JSRuntime, "--no-warnings", "--no-playlist", "--dump-json", "--flat-playlist", fmt.Sprintf("ytsearch20:%s", query))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Gagal memulai")
@@ -209,7 +209,7 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	cmd.Start()
 
-	results := make([]SearchResult, 0, 5)
+	results := make([]SearchResult, 0, 20)
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	for scanner.Scan() {
@@ -245,6 +245,12 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 		results = append(results, SearchResult{ID: item.ID, Title: item.Title, Thumbnail: thumb, Duration: int(item.Duration), URL: videoURL})
 	}
+
+	// Memeriksa error dari scanner sesuai peringatan linter
+	if err := scanner.Err(); err != nil {
+		log.Printf("Peringatan: Gagal membaca stdout pencarian: %v", err)
+	}
+
 	cmd.Wait()
 
 	if len(results) > 0 {
