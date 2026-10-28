@@ -17,7 +17,6 @@
   </head>
   <body>
     <div id="appBg" class="app-bg"></div>
-
     <button id="toggleSidebarBtn" class="toggle-btn shadow-lg"><i class="bi bi-list"></i></button>
 
     <div
@@ -31,7 +30,7 @@
           </p>
         </div>
 
-        <div class="search-box mb-3">
+        <div class="search-box mb-3 position-relative">
           <div
             class="input-group shadow-sm border border-secondary border-opacity-25 rounded overflow-hidden"
           >
@@ -40,18 +39,27 @@
               id="searchInput"
               class="form-control bg-dark text-white border-0 shadow-none px-3"
               placeholder="Cari lagu..."
+              autocomplete="off"
             />
             <button class="btn btn-success fw-bold px-4 border-0" type="button" id="searchBtn">
               Cari
             </button>
           </div>
-          <div id="statusText" class="text-center small mt-2 text-warning fw-bold"></div>
+          <!-- Dropdown Saran Lagu (Autocomplete) -->
+          <div
+            id="searchSuggestions"
+            class="suggestions-dropdown d-none custom-scrollbar shadow-lg"
+          ></div>
+          <div
+            id="statusText"
+            class="text-center mt-3 text-warning fw-bold d-flex align-items-center justify-content-center"
+            style="min-height: 24px"
+          ></div>
         </div>
 
         <div class="w-100 border-bottom border-secondary border-opacity-25 mb-4"></div>
 
         <div class="sidebar-scrollable flex-grow-1 overflow-y-auto pe-2 custom-scrollbar">
-          <!-- FOLDER PENCARIAN -->
           <div
             id="searchResultsContainer"
             class="sidebar-folder mb-4 d-none border border-success border-opacity-25 rounded p-2"
@@ -147,7 +155,6 @@
             </div>
           </div>
 
-          <!-- RIWAYAT TERAKHIR DIPUTAR -->
           <div class="sidebar-folder">
             <div
               class="folder-header d-flex justify-content-between align-items-center mb-2"
@@ -175,7 +182,6 @@
         </div>
       </div>
 
-      <!-- MAIN PANEL -->
       <div
         id="mainPanel"
         class="main-panel position-relative d-flex align-items-center justify-content-center h-100 overflow-y-auto custom-scrollbar w-100"
@@ -271,33 +277,93 @@
                 </button>
               </div>
 
-              <div class="d-flex justify-content-center gap-4 w-100 mt-5 mb-0 flex-wrap">
+              <!-- TOMBOL OVERLAY (PRESISI MUTLAK DENGAN GRID) -->
+              <div class="overlay-toggles-grid w-100 mt-4 mb-2 mx-auto">
                 <button
-                  class="btn btn-dark bg-black bg-opacity-50 rounded-pill px-4 btn-sm border-secondary fw-bold"
-                  id="toggleEqBtn"
+                  class="btn btn-outline-light rounded-pill fw-bold shadow-sm overlay-toggle-btn"
+                  id="toggleDspBtn"
                 >
-                  <i class="bi bi-sliders me-2"></i>AE
+                  <i class="bi bi-magic me-1"></i>
+                  <span class="d-none d-sm-inline">Profil </span>DSP
                 </button>
                 <button
-                  class="btn btn-light rounded-pill px-4 btn-sm fw-bold shadow-sm"
+                  class="btn btn-outline-info rounded-pill fw-bold shadow-sm overlay-toggle-btn"
+                  id="toggleEqBtn"
+                >
+                  <i class="bi bi-sliders me-1"></i> Audio AE
+                </button>
+                <button
+                  class="btn btn-outline-warning rounded-pill fw-bold shadow-sm overlay-toggle-btn"
                   id="toggleLyricsBtn"
                 >
-                  <i class="bi bi-mic-fill me-2"></i>Lyric
+                  <i class="bi bi-mic-fill me-1"></i> Lirik
                 </button>
               </div>
             </div>
 
-            <div id="lyricsOverlay" class="custom-overlay d-none d-flex flex-column p-4">
+            <!-- 1. DSP OVERLAY (NO SCROLL, RESPONSIF LAYAR KECIL) -->
+            <div
+              id="dspOverlay"
+              class="custom-overlay d-none d-flex flex-column p-3 p-md-4 overflow-hidden"
+            >
               <div
-                class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-secondary border-opacity-50"
+                class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-secondary border-opacity-50 flex-shrink-0"
+              >
+                <span class="fw-bold tracking-widest uppercase small text-white-50"
+                  ><i class="bi bi-magic me-2"></i>Smart DSP Profile</span
+                >
+                <button class="btn-close btn-close-white" id="closeDspBtn"></button>
+              </div>
+              <div class="text-center flex-shrink-0 d-none d-md-block mb-3">
+                <h4 class="fw-bold text-white mb-1">Karakter Audio Anda</h4>
+                <p class="text-white-50 small mx-auto m-0">
+                  Sesuaikan pemrosesan sinyal digital (DSP) untuk pengalaman maksimal.
+                </p>
+              </div>
+              <!-- Grid Kontainer DSP -->
+              <div class="dsp-grid-container w-100 mx-auto flex-grow-1">
+                <button class="btn dsp-card-btn active" data-mode="pure">
+                  <div class="dsp-icon-wrapper"><i class="bi bi-earbuds text-light"></i></div>
+                  <div class="dsp-text-wrapper">
+                    <h6 class="fw-bold mb-1 text-white">Mode Studio</h6>
+                    <p class="small text-white-50 mb-0 d-none d-sm-block">
+                      Audio Flat 100% Original.
+                    </p>
+                  </div>
+                </button>
+                <button class="btn dsp-card-btn" data-mode="gaming">
+                  <div class="dsp-icon-wrapper"><i class="bi bi-headset text-light"></i></div>
+                  <div class="dsp-text-wrapper">
+                    <h6 class="fw-bold mb-1 text-white">Mode Spatial 3D</h6>
+                    <p class="small text-white-50 mb-0 d-none d-sm-block">
+                      Akurasi arah suara & V-Shape.
+                    </p>
+                  </div>
+                </button>
+                <button class="btn dsp-card-btn" data-mode="movie">
+                  <div class="dsp-icon-wrapper"><i class="bi bi-speaker text-light"></i></div>
+                  <div class="dsp-text-wrapper">
+                    <h6 class="fw-bold mb-1 text-white">Mode Surround</h6>
+                    <p class="small text-white-50 mb-0 d-none d-sm-block">
+                      Panggung suara sinematik lebar.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. LYRICS OVERLAY -->
+            <div id="lyricsOverlay" class="custom-overlay d-none d-flex flex-column p-3 p-md-4">
+              <div
+                class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-secondary border-opacity-50 flex-shrink-0"
               >
                 <span class="fw-bold text-white-50 tracking-widest uppercase small"
-                  ><i class="bi bi-mic-fill me-2"></i>Lyric</span
+                  ><i class="bi bi-mic-fill me-2"></i>Lirik Lagu</span
                 >
                 <button class="btn-close btn-close-white" id="closeLyricsBtn"></button>
               </div>
               <div
-                class="lyrics-container flex-grow-1 text-center px-1 py-3 custom-scrollbar"
+                class="lyrics-container flex-grow-1 text-center px-1 py-2 custom-scrollbar"
                 id="lyricsContainer"
               >
                 <div class="h-100 d-flex align-items-center justify-content-center">
@@ -306,47 +372,187 @@
               </div>
             </div>
 
-            <div id="eqOverlay" class="custom-overlay d-none d-flex flex-column p-4">
+            <!-- 3. EQ & AE OVERLAY (NO SCROLL, FIT SCREEN) -->
+            <div
+              id="eqOverlay"
+              class="custom-overlay d-none d-flex flex-column p-2 p-md-4 overflow-hidden"
+            >
               <div
-                class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-50"
+                class="d-flex justify-content-between align-items-center mb-1 pb-2 border-bottom border-secondary border-opacity-50 flex-shrink-0"
               >
                 <span class="fw-bold tracking-widest uppercase small text-white-50"
                   ><i class="bi bi-sliders me-2"></i>Audio Equalizer (AE)</span
                 >
                 <button class="btn-close btn-close-white" id="closeEqBtn"></button>
               </div>
-              <div class="mb-4 text-center">
-                <select
-                  class="form-select bg-dark text-white border-0 shadow-sm mx-auto"
-                  id="eqPreset"
-                  style="max-width: 250px"
+
+              <!-- Container Grid AE -->
+              <div class="ae-grid-container w-100 mx-auto flex-grow-1 mt-1">
+                <div
+                  class="glass-card ae-card d-flex flex-column border border-secondary border-opacity-25"
                 >
-                  <option value="flat">Flat (Default)</option>
-                  <option value="bass">Bass Boost</option>
-                  <option value="vocal">Vocal Clarity</option>
-                  <option value="vshape">V-Shape (Pop/Rock)</option>
-                </select>
-              </div>
-              <div class="d-flex justify-content-around align-items-end flex-grow-1 mb-3 px-2">
-                <div class="eq-band">
-                  <input type="range" orient="vertical" id="eq-60" min="-12" max="12" value="0" />
-                  <div class="eq-label">60</div>
+                  <div class="text-center mb-1 flex-shrink-0">
+                    <label
+                      class="small text-white-50 fw-bold mb-1 tracking-widest"
+                      style="font-size: 0.65rem"
+                      >PRESET EQ</label
+                    >
+                    <select
+                      class="form-select form-select-sm bg-dark text-white shadow-none mx-auto text-center border-0 fw-bold rounded-pill"
+                      id="eqPreset"
+                      style="max-width: 200px"
+                    >
+                      <option value="flat">Flat (Default)</option>
+                      <option value="bass">Bass Boost</option>
+                      <option value="vocal">Vocal Clarity</option>
+                      <option value="vshape">V-Shape (Pop/Rock)</option>
+                    </select>
+                  </div>
+                  <div class="d-flex justify-content-around align-items-end flex-grow-1 mt-1">
+                    <div class="eq-band">
+                      <input
+                        type="range"
+                        orient="vertical"
+                        class="eq-slider"
+                        id="eq-60"
+                        min="-12"
+                        max="12"
+                        value="0"
+                      />
+                      <div class="eq-label">60</div>
+                    </div>
+                    <div class="eq-band">
+                      <input
+                        type="range"
+                        orient="vertical"
+                        class="eq-slider"
+                        id="eq-230"
+                        min="-12"
+                        max="12"
+                        value="0"
+                      />
+                      <div class="eq-label">230</div>
+                    </div>
+                    <div class="eq-band">
+                      <input
+                        type="range"
+                        orient="vertical"
+                        class="eq-slider"
+                        id="eq-910"
+                        min="-12"
+                        max="12"
+                        value="0"
+                      />
+                      <div class="eq-label">910</div>
+                    </div>
+                    <div class="eq-band">
+                      <input
+                        type="range"
+                        orient="vertical"
+                        class="eq-slider"
+                        id="eq-3k"
+                        min="-12"
+                        max="12"
+                        value="0"
+                      />
+                      <div class="eq-label">3k</div>
+                    </div>
+                    <div class="eq-band">
+                      <input
+                        type="range"
+                        orient="vertical"
+                        class="eq-slider"
+                        id="eq-14k"
+                        min="-12"
+                        max="12"
+                        value="0"
+                      />
+                      <div class="eq-label">14k</div>
+                    </div>
+                  </div>
                 </div>
-                <div class="eq-band">
-                  <input type="range" orient="vertical" id="eq-230" min="-12" max="12" value="0" />
-                  <div class="eq-label">230</div>
-                </div>
-                <div class="eq-band">
-                  <input type="range" orient="vertical" id="eq-910" min="-12" max="12" value="0" />
-                  <div class="eq-label">910</div>
-                </div>
-                <div class="eq-band">
-                  <input type="range" orient="vertical" id="eq-3k" min="-12" max="12" value="0" />
-                  <div class="eq-label">3k</div>
-                </div>
-                <div class="eq-band">
-                  <input type="range" orient="vertical" id="eq-14k" min="-12" max="12" value="0" />
-                  <div class="eq-label">14k</div>
+
+                <div
+                  class="glass-card ae-card d-flex flex-column border border-secondary border-opacity-25 text-start justify-content-between"
+                >
+                  <label
+                    class="text-white-50 fw-bold tracking-widest mb-1 d-block border-bottom border-secondary border-opacity-25 pb-1 flex-shrink-0"
+                    style="font-size: 0.65rem"
+                    ><i class="bi bi-cpu-fill me-1"></i> ENGINE SPATIAL</label
+                  >
+                  <div class="mb-1">
+                    <label class="text-white-50 m-0" style="font-size: 0.65rem">Engine Utama</label>
+                    <select
+                      id="spatialEngine"
+                      class="form-select form-select-sm bg-dark text-white border-0 shadow-none rounded-3"
+                    >
+                      <option value="off">Bypass</option>
+                      <option value="dolby">Dolby Digital Live</option>
+                      <option value="dts">DTS Interactive</option>
+                    </select>
+                  </div>
+                  <div
+                    id="dolbyOptions"
+                    class="d-none mb-1 slide-down p-2 bg-black bg-opacity-25 rounded-3 border border-info border-opacity-25"
+                  >
+                    <label class="text-info fw-bold m-0" style="font-size: 0.65rem"
+                      >Dolby Profile</label
+                    >
+                    <select
+                      id="dolbyProfile"
+                      class="form-select form-select-sm bg-dark text-white border-0 shadow-none rounded-3"
+                    >
+                      <option value="atmos">Atmos Speaker</option>
+                      <option value="premium">Audio Premium</option>
+                      <option value="cinema5">Cinema 5</option>
+                      <option value="xfi5">X-Fi MB5</option>
+                    </select>
+                  </div>
+                  <div
+                    id="dtsOptions"
+                    class="d-none mb-1 slide-down p-2 bg-black bg-opacity-25 rounded-3 border border-danger border-opacity-25"
+                  >
+                    <label class="text-danger fw-bold m-0" style="font-size: 0.65rem"
+                      >DTS Profile</label
+                    >
+                    <select
+                      id="dtsProfile"
+                      class="form-select form-select-sm bg-dark text-white border-0 shadow-none rounded-3"
+                    >
+                      <option value="dtsx">DTS:X Ultra</option>
+                      <option value="unbound">Sound Unbound</option>
+                      <option value="studio">Studio Sound</option>
+                      <option value="sbx720">Sound BlasterX</option>
+                    </select>
+                  </div>
+                  <div
+                    class="d-flex flex-column gap-1 pt-1 border-top border-secondary border-opacity-25 flex-shrink-0"
+                  >
+                    <div class="form-check form-switch d-flex align-items-center gap-2 m-0">
+                      <input
+                        class="form-check-input m-0 ae-toggles"
+                        type="checkbox"
+                        id="sonicRadar"
+                      /><label
+                        class="form-check-label text-white fw-bold ms-1"
+                        for="sonicRadar"
+                        style="font-size: 0.7rem"
+                        >Sonic Radar 3</label
+                      >
+                    </div>
+                    <div class="form-check form-switch d-flex align-items-center gap-2 m-0">
+                      <input
+                        class="form-check-input m-0 ae-toggles"
+                        type="checkbox"
+                        id="iceSound"
+                      /><label
+                        class="form-check-label text-white fw-bold ms-1"
+                        for="iceSound"
+                        style="font-size: 0.7rem"
+                        >ICEsound</label
+                      >
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -378,7 +584,6 @@
             </h6>
             <button class="btn-close btn-close-white" id="closePlaylistModalBtn"></button>
           </div>
-
           <div class="mb-3 border-bottom border-secondary pb-3">
             <label class="small text-white-50 mb-2">Buat Folder Baru:</label>
             <div class="input-group input-group-sm">
@@ -393,7 +598,6 @@
               </button>
             </div>
           </div>
-
           <label class="small text-white-50 mb-2">Pilih Folder Anda:</label>
           <div
             id="existingFoldersList"

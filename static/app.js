@@ -1,8 +1,8 @@
-// --- DOM ELEMENTS ---
 const sidebar = document.getElementById('sidebar');
 const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
 const searchBtn = document.getElementById('searchBtn');
 const searchInput = document.getElementById('searchInput');
+const searchSuggestions = document.getElementById('searchSuggestions');
 const statusText = document.getElementById('statusText');
 const searchResultsContainer = document.getElementById('searchResultsContainer');
 const resultsList = document.getElementById('resultsList');
@@ -11,8 +11,6 @@ const playerSection = document.getElementById('playerSection');
 const npCover = document.getElementById('npCover');
 const npTitle = document.getElementById('npTitle');
 const audioPlayer = document.getElementById('audioPlayer');
-
-// Kontrol Player
 const playPauseBtn = document.getElementById('playPauseBtn');
 const nextTrackBtn = document.getElementById('nextTrackBtn');
 const prevTrackBtn = document.getElementById('prevTrackBtn');
@@ -25,16 +23,22 @@ const progressBarWrapper = document.getElementById('progressBarWrapper');
 const progressFill = document.getElementById('progressFill');
 const currentTimeDisplay = document.getElementById('currentTimeDisplay');
 const durationDisplay = document.getElementById('durationDisplay');
-
 const queueSection = document.getElementById('queueSection');
 const queueList = document.getElementById('queueList');
 const playlistList = document.getElementById('playlistList');
 const customPlaylistsContainer = document.getElementById('customPlaylistsContainer');
 
-// OVERLAYS & MODALS
+// Overlays variables
+const toggleDspBtn = document.getElementById('toggleDspBtn');
+const closeDspBtn = document.getElementById('closeDspBtn');
+const dspOverlay = document.getElementById('dspOverlay');
 const toggleEqBtn = document.getElementById('toggleEqBtn');
 const closeEqBtn = document.getElementById('closeEqBtn');
 const eqOverlay = document.getElementById('eqOverlay');
+const toggleLyricsBtn = document.getElementById('toggleLyricsBtn');
+const closeLyricsBtn = document.getElementById('closeLyricsBtn');
+const lyricsOverlay = document.getElementById('lyricsOverlay');
+
 const eqPreset = document.getElementById('eqPreset');
 const eqSliders = {
   60: document.getElementById('eq-60'),
@@ -44,28 +48,31 @@ const eqSliders = {
   '14k': document.getElementById('eq-14k'),
 };
 
-const toggleLyricsBtn = document.getElementById('toggleLyricsBtn');
-const closeLyricsBtn = document.getElementById('closeLyricsBtn');
-const lyricsOverlay = document.getElementById('lyricsOverlay');
 const lyricsContainer = document.getElementById('lyricsContainer');
-
 const openPlaylistModalBtn = document.getElementById('openPlaylistModalBtn');
 const closePlaylistModalBtn = document.getElementById('closePlaylistModalBtn');
 const playlistModal = document.getElementById('playlistModal');
 const existingFoldersList = document.getElementById('existingFoldersList');
 const playlistStatusText = document.getElementById('playlistStatusText');
-
 const newSidebarFolderName = document.getElementById('newSidebarFolderName');
 const createSidebarFolderBtn = document.getElementById('createSidebarFolderBtn');
 const sidebarPlaylistStatus = document.getElementById('sidebarPlaylistStatus');
 const modalNewFolderName = document.getElementById('modalNewFolderName');
 const modalCreateFolderBtn = document.getElementById('modalCreateFolderBtn');
+const spatialEngine = document.getElementById('spatialEngine');
+const dolbyOptions = document.getElementById('dolbyOptions');
+const dtsOptions = document.getElementById('dtsOptions');
+const dolbyProfile = document.getElementById('dolbyProfile');
+const dtsProfile = document.getElementById('dtsProfile');
+const sonicRadar = document.getElementById('sonicRadar');
+const iceSound = document.getElementById('iceSound');
 
 let audioContext,
   sourceNode,
   analyser,
   filters = {},
   isAudioInitialized = false;
+let dspNodes = { panner: null, compressor: null, iceFilter: null, radarFilter: null };
 let visualizerColor = 'rgb(29, 185, 84)';
 let syncedLyricsData = [];
 let playQueue = [],
@@ -77,33 +84,32 @@ let isShuffle = false,
   repeatMode = 0,
   currentRepeatCount = 0;
 const LYRICS_OFFSET = -0.4;
+let suggestTimeout;
 
-// --- SIDEBAR TOGGLE & AUTO-CLOSE ---
-toggleSidebarBtn.addEventListener('click', () => {
-  sidebar.classList.toggle('closed');
-});
+toggleSidebarBtn.addEventListener('click', () => sidebar.classList.toggle('closed'));
 function autoCollapseSidebar() {
   if (window.innerWidth < 992) sidebar.classList.add('closed');
 }
 document.addEventListener('click', (e) => {
-  // Jika sidebar dalam keadaan terbuka
   if (!sidebar.classList.contains('closed')) {
-    // Jika klik BUKAN pada sidebar dan BUKAN pada tombol toggle (hamburger)
     if (!sidebar.contains(e.target) && !toggleSidebarBtn.contains(e.target)) {
-      // Abaikan jika klik terjadi di dalam modal playlist overlay
       if (!playlistModal.classList.contains('d-none') && playlistModal.contains(e.target)) return;
-      // Tutup otomatis!
+      if (!searchSuggestions.contains(e.target) && e.target !== searchInput) {
+        searchSuggestions.classList.add('d-none');
+      }
       sidebar.classList.add('closed');
+    }
+  } else {
+    if (!searchSuggestions.contains(e.target) && e.target !== searchInput) {
+      searchSuggestions.classList.add('d-none');
     }
   }
 });
 
-// --- FOLDER ACCORDION LOGIC (SAFE BINDING) ---
 function bindAccordion(element) {
   if (!element || element.dataset.bound === 'true') return;
   element.dataset.bound = 'true';
   element.addEventListener('click', (e) => {
-    // Cegah toggle buka-tutup saat menekan tombol seperti rename atau hapus
     if (e.target.closest('button') || e.target.closest('input')) return;
     const targetId = element.getAttribute('data-target');
     const iconId = element.getAttribute('data-icon');
@@ -115,23 +121,31 @@ function bindAccordion(element) {
 }
 document.querySelectorAll('.folder-header').forEach((header) => bindAccordion(header));
 
-// --- OVERLAY LOGIC ---
-toggleLyricsBtn.addEventListener('click', () => {
-  lyricsOverlay.classList.remove('d-none');
-  eqOverlay.classList.add('d-none');
-});
-closeLyricsBtn.addEventListener('click', () => {
+// Logic Toggles for 3 Overlays
+function closeAllOverlays() {
   lyricsOverlay.classList.add('d-none');
-});
-toggleEqBtn.addEventListener('click', () => {
-  eqOverlay.classList.remove('d-none');
-  lyricsOverlay.classList.add('d-none');
-});
-closeEqBtn.addEventListener('click', () => {
   eqOverlay.classList.add('d-none');
-});
+  dspOverlay.classList.add('d-none');
+}
 
-// --- CANVAS SETUP ---
+toggleLyricsBtn.addEventListener('click', () => {
+  closeAllOverlays();
+  lyricsOverlay.classList.remove('d-none');
+});
+closeLyricsBtn.addEventListener('click', closeAllOverlays);
+
+toggleEqBtn.addEventListener('click', () => {
+  closeAllOverlays();
+  eqOverlay.classList.remove('d-none');
+});
+closeEqBtn.addEventListener('click', closeAllOverlays);
+
+toggleDspBtn.addEventListener('click', () => {
+  closeAllOverlays();
+  dspOverlay.classList.remove('d-none');
+});
+closeDspBtn.addEventListener('click', closeAllOverlays);
+
 const canvas = document.getElementById('visualizerCanvas');
 const canvasCtx = canvas.getContext('2d');
 function resizeCanvas() {
@@ -143,7 +157,6 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// --- LIST RENDERER ---
 function createListItem(
   track,
   isQueue = false,
@@ -154,15 +167,11 @@ function createListItem(
   const div = document.createElement('div');
   div.className = `list-item shadow-sm ${isQueue ? 'list-item-queued' : ''}`;
   if (isQueue) div.style.borderLeftColor = visualizerColor;
-
   let btnHtml = '';
   if (showAddBtn) {
-    btnHtml = `
-      <button class="add-playlist-icon-btn" title="Simpan ke Folder Playlist"><i class="bi bi-folder-plus"></i></button>
-      <button class="add-queue-icon-btn" title="Tambahkan ke Antrean"><i class="bi bi-plus-lg"></i></button>
-    `;
+    btnHtml = `<button class="add-playlist-icon-btn" title="Simpan ke Folder Playlist"><i class="bi bi-folder-plus"></i></button>
+               <button class="add-queue-icon-btn" title="Tambahkan ke Antrean"><i class="bi bi-plus-lg"></i></button>`;
   }
-
   let extraHtml = '';
   if (timeStr) extraHtml += `<div class="time-badge ms-1">${timeStr}</div>`;
   if (deleteCallback) {
@@ -170,13 +179,7 @@ function createListItem(
   } else if (!isQueue) {
     extraHtml += `<i class="bi bi-play-fill item-play-icon"></i>`;
   }
-
-  div.innerHTML = `
-    <img src="${track.thumbnail}" class="item-thumb">
-    <div class="item-title">${track.title}</div>
-    ${btnHtml}
-    ${extraHtml}
-  `;
+  div.innerHTML = `<img src="${track.thumbnail}" class="item-thumb"><div class="item-title">${track.title}</div>${btnHtml}${extraHtml}`;
 
   if (showAddBtn) {
     const qBtn = div.querySelector('.add-queue-icon-btn');
@@ -189,7 +192,6 @@ function createListItem(
         qBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
       }, 1000);
     });
-
     const pBtn = div.querySelector('.add-playlist-icon-btn');
     pBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -198,7 +200,6 @@ function createListItem(
       renderExistingFoldersInModal();
     });
   }
-
   if (deleteCallback) {
     div.querySelector('.delete-track-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -208,12 +209,11 @@ function createListItem(
   return div;
 }
 
-// --- FUNGSI PUTAR MASSAL ---
 function playFolderTracks(tracks, shuffle = false) {
   if (!tracks || tracks.length === 0) {
-    statusText.innerHTML = `❌ Folder kosong`;
+    statusText.innerHTML = `<i class="bi bi-x-circle text-danger fs-5"></i> Folder Kosong`;
     setTimeout(() => {
-      statusText.textContent = '';
+      statusText.innerHTML = '';
     }, 1500);
     return;
   }
@@ -234,18 +234,18 @@ function playFolderTracks(tracks, shuffle = false) {
   playSelectedTrack(firstTrack, false);
 }
 
-document.getElementById('playAllLikedBtn').addEventListener('click', () => {
-  playFolderTracks(getLikedSongs(), false);
-});
-document.getElementById('shuffleAllLikedBtn').addEventListener('click', () => {
-  playFolderTracks(getLikedSongs(), true);
-});
-document.getElementById('playAllQueueBtn').addEventListener('click', () => {
-  playFolderTracks(playQueue, false);
-});
-document.getElementById('shuffleAllQueueBtn').addEventListener('click', () => {
-  playFolderTracks(playQueue, true);
-});
+document
+  .getElementById('playAllLikedBtn')
+  .addEventListener('click', () => playFolderTracks(getLikedSongs(), false));
+document
+  .getElementById('shuffleAllLikedBtn')
+  .addEventListener('click', () => playFolderTracks(getLikedSongs(), true));
+document
+  .getElementById('playAllQueueBtn')
+  .addEventListener('click', () => playFolderTracks(playQueue, false));
+document
+  .getElementById('shuffleAllQueueBtn')
+  .addEventListener('click', () => playFolderTracks(playQueue, true));
 
 function renderQueue() {
   queueList.innerHTML = '';
@@ -284,13 +284,12 @@ function playNextInQueue() {
     if (repeatMode === 4 && currentTrackObj) {
       playSelectedTrack(currentTrackObj, false);
     } else {
-      statusText.innerHTML = `🎵 Antrean habis.`;
+      statusText.innerHTML = '';
       playPauseBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
     }
   }
 }
 
-// --- FOLDER PLAYLIST KUSTOM ---
 function getCustomPlaylists() {
   return JSON.parse(localStorage.getItem('dazo_custom_playlists')) || {};
 }
@@ -301,7 +300,6 @@ function saveCustomPlaylists(data) {
 function renderSidebarCustomPlaylists() {
   customPlaylistsContainer.innerHTML = '';
   const playlists = getCustomPlaylists();
-
   for (let folderName in playlists) {
     const folderId =
       'folder-' +
@@ -329,8 +327,6 @@ function renderSidebarCustomPlaylists() {
     `;
     customPlaylistsContainer.insertAdjacentHTML('beforeend', folderHtml);
     const wrapperElement = customPlaylistsContainer.lastElementChild;
-
-    // Bind aman tanpa merusak event listener lain
     bindAccordion(wrapperElement.querySelector('.folder-header'));
 
     wrapperElement.querySelector('.play-folder-btn').addEventListener('click', (e) => {
@@ -342,7 +338,6 @@ function renderSidebarCustomPlaylists() {
       playFolderTracks(playlists[folderName], true);
     });
 
-    // RENAME LOGIC
     wrapperElement.querySelector('.rename-folder-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       const newName = prompt('Masukkan nama folder baru:', folderName);
@@ -359,7 +354,6 @@ function renderSidebarCustomPlaylists() {
       }
     });
 
-    // DELETE LOGIC
     wrapperElement.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       if (confirm(`Hapus folder "${folderName}" beserta isinya?`)) {
@@ -491,7 +485,6 @@ addQueueBtn.addEventListener('click', () => {
   }
 });
 
-// --- LIKED SONGS ---
 function getLikedSongs() {
   return JSON.parse(localStorage.getItem('dazo_liked')) || [];
 }
@@ -545,7 +538,6 @@ function checkLikedStatus() {
 }
 likeBtn.addEventListener('click', toggleLike);
 
-// --- REPEAT, SHUFFLE & PREVIOUS ---
 shuffleBtn.addEventListener('click', () => {
   isShuffle = !isShuffle;
   shuffleBtn.classList.toggle('active', isShuffle);
@@ -597,7 +589,6 @@ prevTrackBtn.addEventListener('click', () => {
   }
 });
 
-// --- PLAYER CONTROLS ---
 function formatTime(s) {
   if (isNaN(s) || !isFinite(s)) return '0:00';
   const m = Math.floor(s / 60),
@@ -640,7 +631,6 @@ function updateProgress(e) {
   }
 }
 
-// --- DSP AUDIO CONTEXT ---
 function initAudioContext() {
   if (isAudioInitialized) return;
   try {
@@ -651,7 +641,9 @@ function initAudioContext() {
   sourceNode = audioContext.createMediaElementSource(audioPlayer);
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 256;
+
   let prevNode = sourceNode;
+
   [60, 230, 910, 3000, 14000].forEach((freq, i) => {
     const filter = audioContext.createBiquadFilter();
     filter.type = i === 0 ? 'lowshelf' : i === 4 ? 'highshelf' : 'peaking';
@@ -662,11 +654,76 @@ function initAudioContext() {
     prevNode = filter;
     filters[freq] = filter;
   });
+
+  dspNodes.panner = audioContext.createStereoPanner();
+  prevNode.connect(dspNodes.panner);
+  prevNode = dspNodes.panner;
+
+  dspNodes.iceFilter = audioContext.createBiquadFilter();
+  dspNodes.iceFilter.type = 'highshelf';
+  dspNodes.iceFilter.frequency.value = 10000;
+  prevNode.connect(dspNodes.iceFilter);
+  prevNode = dspNodes.iceFilter;
+
+  dspNodes.radarFilter = audioContext.createBiquadFilter();
+  dspNodes.radarFilter.type = 'peaking';
+  dspNodes.radarFilter.frequency.value = 2500;
+  dspNodes.radarFilter.Q.value = 2.5;
+  prevNode.connect(dspNodes.radarFilter);
+  prevNode = dspNodes.radarFilter;
+
+  dspNodes.compressor = audioContext.createDynamicsCompressor();
+  prevNode.connect(dspNodes.compressor);
+  prevNode = dspNodes.compressor;
+
   prevNode.connect(analyser);
   analyser.connect(audioContext.destination);
+
   isAudioInitialized = true;
+  applyAdvancedDSP();
   resizeCanvas();
   requestAnimationFrame(drawVisualizer);
+}
+
+function applyAdvancedDSP() {
+  if (!isAudioInitialized || !dspNodes.compressor) return;
+  const engine = spatialEngine.value;
+
+  dspNodes.panner.pan.value = 0;
+  dspNodes.compressor.threshold.value = 0;
+  dspNodes.compressor.ratio.value = 1;
+  dspNodes.iceFilter.gain.value = 0;
+  dspNodes.radarFilter.gain.value = 0;
+
+  if (engine === 'dolby') {
+    const dProfile = dolbyProfile.value;
+    dspNodes.compressor.threshold.value = -24;
+    dspNodes.compressor.attack.value = 0.05;
+    dspNodes.compressor.release.value = 0.25;
+
+    if (dProfile === 'atmos' || dProfile === 'premium') {
+      dspNodes.compressor.ratio.value = 3.5;
+      dspNodes.panner.pan.value = 0.02;
+    } else if (dProfile === 'cinema5' || dProfile === 'xfi5') {
+      dspNodes.compressor.ratio.value = 5.0;
+      dspNodes.compressor.knee.value = 30;
+    }
+  } else if (engine === 'dts') {
+    const dProfile = dtsProfile.value;
+    dspNodes.compressor.threshold.value = -20;
+    dspNodes.compressor.attack.value = 0.003;
+    dspNodes.compressor.release.value = 0.1;
+
+    if (dProfile === 'dtsx' || dProfile === 'unbound') {
+      dspNodes.compressor.ratio.value = 8.0;
+    } else if (dProfile === 'studio' || dProfile === 'sbx720') {
+      dspNodes.compressor.ratio.value = 6.0;
+      dspNodes.compressor.knee.value = 10;
+    }
+  }
+
+  if (iceSound.checked) dspNodes.iceFilter.gain.value = 6.0;
+  if (sonicRadar.checked) dspNodes.radarFilter.gain.value = 5.0;
 }
 
 function drawVisualizer() {
@@ -686,7 +743,39 @@ function drawVisualizer() {
   }
 }
 
-// --- LYRICS ALGORITHM ---
+const presets = {
+  flat: { 60: 0, 230: 0, 910: 0, 3000: 0, 14000: 0 },
+  bass: { 60: 8, 230: 4, 910: 0, 3000: 0, 14000: -2 },
+  vocal: { 60: -2, 230: -1, 910: 5, 3000: 4, 14000: 1 },
+  vshape: { 60: 6, 230: -2, 910: -3, 3000: 4, 14000: 7 },
+};
+eqPreset.addEventListener('change', (e) => {
+  const p = presets[e.target.value];
+  if (p) {
+    [60, 230, 910, 3000, 14000].forEach((f) => {
+      const id = f === 3000 ? '3k' : f === 14000 ? '14k' : f;
+      eqSliders[id].value = p[f];
+      if (isAudioInitialized) filters[f].gain.value = p[f];
+    });
+  }
+});
+Object.keys(eqSliders).forEach((key) => {
+  eqSliders[key].addEventListener('input', (e) => {
+    const freq = key === '3k' ? 3000 : key === '14k' ? 14000 : parseInt(key);
+    if (filters[freq]) filters[freq].gain.value = parseFloat(e.target.value);
+    eqPreset.value = 'custom';
+  });
+});
+
+spatialEngine.addEventListener('change', (e) => {
+  dolbyOptions.classList.toggle('d-none', e.target.value !== 'dolby');
+  dtsOptions.classList.toggle('d-none', e.target.value !== 'dts');
+  applyAdvancedDSP();
+});
+[dolbyProfile, dtsProfile, sonicRadar, iceSound].forEach((el) => {
+  if (el) el.addEventListener('change', applyAdvancedDSP);
+});
+
 async function fetchLyrics(rawTitle, durationSec) {
   lyricsContainer.innerHTML = `<div class="h-100 d-flex align-items-center justify-content-center"><p class="text-white-50 fs-5 mb-0">Mencari sinkronisasi lyric...</p></div>`;
   syncedLyricsData = [];
@@ -770,32 +859,6 @@ audioPlayer.addEventListener('timeupdate', () => {
   }
 });
 
-// --- EQ PRESETS ---
-const presets = {
-  flat: { 60: 0, 230: 0, 910: 0, 3000: 0, 14000: 0 },
-  bass: { 60: 8, 230: 4, 910: 0, 3000: 0, 14000: -2 },
-  vocal: { 60: -2, 230: -1, 910: 5, 3000: 4, 14000: 1 },
-  vshape: { 60: 6, 230: -2, 910: -3, 3000: 4, 14000: 7 },
-};
-eqPreset.addEventListener('change', (e) => {
-  const p = presets[e.target.value];
-  if (p) {
-    [60, 230, 910, 3000, 14000].forEach((f) => {
-      const id = f === 3000 ? '3k' : f === 14000 ? '14k' : f;
-      eqSliders[id].value = p[f];
-      if (isAudioInitialized) filters[f].gain.value = p[f];
-    });
-  }
-});
-Object.keys(eqSliders).forEach((key) => {
-  eqSliders[key].addEventListener('input', (e) => {
-    const freq = key === '3k' ? 3000 : key === '14k' ? 14000 : parseInt(key);
-    if (filters[freq]) filters[freq].gain.value = parseFloat(e.target.value);
-    eqPreset.value = 'custom';
-  });
-});
-
-// --- DYNAMIC COLOR ---
 const colorThief = new ColorThief();
 npCover.addEventListener('load', () => {
   document.getElementById('appBg').style.backgroundImage = `url(${npCover.src})`;
@@ -809,17 +872,14 @@ npCover.addEventListener('load', () => {
   } catch (e) {}
 });
 
-// --- HISTORY & SEARCH ---
 function getHistory() {
   return JSON.parse(localStorage.getItem('dazo_history')) || [];
 }
-
 function addToHistory(track) {
   let history = getHistory().filter((item) => item.webpage_url !== track.webpage_url);
-  // Tambahkan timestamp saat lagu diputar
   const newRecord = { ...track, timestamp: Date.now() };
   history.unshift(newRecord);
-  if (history.length > 1000) history.pop(); // Simpan riwayat hingga 1000 lagu
+  if (history.length > 1000) history.pop();
   localStorage.setItem('dazo_history', JSON.stringify(history));
   renderHistory();
 }
@@ -832,12 +892,9 @@ function renderHistory() {
     historyList.innerHTML = '<div class="text-white-50 small px-2">Riwayat kosong</div>';
     return;
   }
-
-  // Grup data spesifik berdasarkan "Hari"
   const grouped = {};
   history.forEach((track) => {
     const d = new Date(track.timestamp || Date.now());
-    // Format: "Senin, 26 Oktober 2026"
     const dayKey = d.toLocaleDateString('id-ID', {
       weekday: 'long',
       day: 'numeric',
@@ -845,7 +902,6 @@ function renderHistory() {
       year: 'numeric',
     });
     const timeKey = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
     if (!grouped[dayKey]) grouped[dayKey] = [];
     grouped[dayKey].push({ ...track, timePlayed: timeKey });
   });
@@ -855,33 +911,29 @@ function renderHistory() {
     const dayId = 'history-day-' + Math.random().toString(36).substr(2, 5);
     const dayDiv = document.createElement('div');
     dayDiv.className = 'sidebar-folder mb-2 border border-secondary border-opacity-25 rounded p-2';
-
-    // Header berbentuk folder untuk setiap harinya
     dayDiv.innerHTML = `
       <div class="folder-header d-flex justify-content-between align-items-center" data-target="${dayId}" data-icon="icon-${dayId}">
-        <h6 class="section-title mb-0 text-white-50" style="text-transform:none; font-size:0.8rem;">
-          <i class="bi bi-calendar-event me-2"></i>${day}
-        </h6>
+        <h6 class="section-title mb-0 text-white-50" style="text-transform:none; font-size:0.8rem;"><i class="bi bi-calendar-event me-2"></i>${day}</h6>
         <i id="icon-${dayId}" class="bi bi-chevron-down text-white-50 transition-icon ${isFirstDay ? 'rotate-180' : ''}"></i>
       </div>
       <div id="${dayId}" class="folder-content d-flex flex-column gap-2 mt-2 ${isFirstDay ? '' : 'd-none'}"></div>
     `;
-
     const tracksContainer = dayDiv.querySelector(`#${dayId}`);
-
-    // Bind accordion agar folder hari bisa dibuka/tutup
     bindAccordion(dayDiv.querySelector('.folder-header'));
 
-    // Masukkan daftar lagu ke dalam folder hari tersebut
     grouped[day].forEach((track) => {
-      const item = createListItem(track, false, true, track.timePlayed);
+      const item = createListItem(track, false, true, track.timePlayed, () => {
+        let hist = getHistory().filter((t) => t.webpage_url !== track.webpage_url);
+        localStorage.setItem('dazo_history', JSON.stringify(hist));
+        renderHistory();
+      });
+
       item.addEventListener('click', (e) => {
         if (e.target.closest('button')) return;
         playSelectedTrack(track, true);
       });
       tracksContainer.appendChild(item);
     });
-
     historyList.appendChild(dayDiv);
     isFirstDay = false;
   }
@@ -894,31 +946,80 @@ document.getElementById('clearHistoryBtn').addEventListener('click', (e) => {
     renderHistory();
   }
 });
+
 window.addEventListener('DOMContentLoaded', () => {
   renderHistory();
   renderPlaylist();
   renderSidebarCustomPlaylists();
 });
 
-searchInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') searchBtn.click();
+// --- SISTEM AUTOCOMPLETE PENCARIAN (VIA YOUTUBE API JSONP) ---
+searchInput.addEventListener('input', (e) => {
+  clearTimeout(suggestTimeout);
+  const query = e.target.value.trim();
+  if (!query) {
+    searchSuggestions.classList.add('d-none');
+    return;
+  }
+  suggestTimeout = setTimeout(() => {
+    fetchSuggestions(query);
+  }, 250);
 });
+
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    searchSuggestions.classList.add('d-none');
+    searchBtn.click();
+  }
+});
+
+function fetchSuggestions(query) {
+  const script = document.createElement('script');
+  window.ytSuggestCallback = function (data) {
+    renderSuggestions(data[1]);
+    document.head.removeChild(script);
+    delete window.ytSuggestCallback;
+  };
+  script.src = `https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=${encodeURIComponent(query)}&callback=ytSuggestCallback`;
+  document.head.appendChild(script);
+}
+
+function renderSuggestions(suggestions) {
+  if (!suggestions || suggestions.length === 0) {
+    searchSuggestions.classList.add('d-none');
+    return;
+  }
+  searchSuggestions.innerHTML = '';
+  suggestions.forEach((s) => {
+    const text = s[0];
+    const div = document.createElement('div');
+    div.className = 'suggestion-item fw-bold';
+    div.innerHTML = `<i class="bi bi-search me-3 text-white-50"></i> ${text}`;
+    div.addEventListener('click', () => {
+      searchInput.value = text;
+      searchSuggestions.classList.add('d-none');
+      searchBtn.click();
+    });
+    searchSuggestions.appendChild(div);
+  });
+  searchSuggestions.classList.remove('d-none');
+}
+
 searchBtn.addEventListener('click', async () => {
   const query = searchInput.value.trim();
   if (!query) return;
-  statusText.innerHTML = `⏳ Mencari...`;
+  statusText.innerHTML = `<div class="spinner-border spinner-border-sm text-success" role="status"></div>`;
   searchBtn.disabled = true;
   searchResultsContainer.classList.add('d-none');
   resultsList.innerHTML = '';
-
   try {
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await res.json();
     if (data.error || data.length === 0) {
-      statusText.innerHTML = `❌ ${data.error || 'Tidak ditemukan.'}`;
+      statusText.innerHTML = `<i class="bi bi-exclamation-circle text-warning fs-5"></i>`;
       return;
     }
-    statusText.textContent = ``;
+    statusText.innerHTML = ``;
     data.forEach((item) => {
       const div = createListItem(item, false, true);
       div.addEventListener('click', (e) => {
@@ -929,14 +1030,14 @@ searchBtn.addEventListener('click', async () => {
     });
     searchResultsContainer.classList.remove('d-none');
   } catch (e) {
-    statusText.innerHTML = `❌ Server mati.`;
+    statusText.innerHTML = `<i class="bi bi-x-circle text-danger fs-5"></i>`;
   } finally {
     searchBtn.disabled = false;
   }
 });
 
 async function playSelectedTrack(track, isHistoryClick = false, isPrevClick = false) {
-  statusText.innerHTML = `⏳ Loading...`;
+  statusText.innerHTML = `<div class="spinner-grow spinner-grow-sm text-primary" role="status"></div>`;
   emptyState.classList.add('d-none');
   playerSection.classList.remove('d-none');
   autoCollapseSidebar();
@@ -973,15 +1074,15 @@ async function playSelectedTrack(track, isHistoryClick = false, isPrevClick = fa
       initAudioContext();
       if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
       await audioPlayer.play();
-      statusText.textContent = '';
+      statusText.innerHTML = '';
       setTimeout(resizeCanvas, 300);
       fetchLyrics(track.title, track.duration || 0);
     } catch (e) {
-      statusText.textContent = '';
+      statusText.innerHTML = '';
       fetchLyrics(track.title, track.duration || 0);
     }
   } catch (e) {
-    statusText.innerHTML = `❌ Gagal memuat stream.`;
+    statusText.innerHTML = `<i class="bi bi-dash-circle text-danger fs-5" title="Gagal"></i>`;
     setTimeout(playNextInQueue, 2000);
   }
 }
@@ -989,3 +1090,45 @@ async function playSelectedTrack(track, isHistoryClick = false, isPrevClick = fa
 audioPlayer.addEventListener('error', () => {
   setTimeout(playNextInQueue, 2500);
 });
+
+// --- SMART DSP PRESET MANAGER DENGAN CARD LAYOUT ---
+const dspCardBtns = document.querySelectorAll('.dsp-card-btn');
+
+dspCardBtns.forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    dspCardBtns.forEach((b) => b.classList.remove('active'));
+    const targetBtn = e.currentTarget;
+    targetBtn.classList.add('active');
+
+    applySmartDSP(targetBtn.getAttribute('data-mode'));
+  });
+});
+
+function applySmartDSP(mode) {
+  if (mode === 'pure') {
+    spatialEngine.value = 'off';
+    eqPreset.value = 'flat';
+    sonicRadar.checked = false;
+    iceSound.checked = false;
+  } else if (mode === 'gaming') {
+    spatialEngine.value = 'dts';
+    dtsProfile.value = 'dtsx';
+    eqPreset.value = 'vshape';
+    sonicRadar.checked = true;
+    iceSound.checked = false;
+  } else if (mode === 'movie') {
+    spatialEngine.value = 'dolby';
+    dolbyProfile.value = 'atmos';
+    eqPreset.value = 'bass';
+    sonicRadar.checked = false;
+    iceSound.checked = true;
+  }
+
+  eqPreset.dispatchEvent(new Event('change'));
+  spatialEngine.dispatchEvent(new Event('change'));
+
+  statusText.innerHTML = `<i class="bi bi-check2-circle text-success fs-5"></i> <span class="ms-2">Profil Diterapkan</span>`;
+  setTimeout(() => {
+    statusText.innerHTML = '';
+  }, 1500);
+}
