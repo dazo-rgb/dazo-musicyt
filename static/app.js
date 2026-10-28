@@ -72,8 +72,9 @@ let audioContext,
   analyser,
   filters = {},
   isAudioInitialized = false;
-let dspNodes = { panner: null, compressor: null, iceFilter: null, radarFilter: null };
+let dspNodes = { panner: null, compressor: null, iceFilter: null, radarFilter: null, outputGain: null };
 let visualizerColor = 'rgb(29, 185, 84)';
+let visualizerRunning = false;
 let syncedLyricsData = [];
 let playQueue = [],
   previousQueue = [];
@@ -596,9 +597,18 @@ function formatTime(s) {
   return `${m}:${sec < 10 ? '0' : ''}${sec}`;
 }
 playPauseBtn.addEventListener('click', async () => {
-  if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
-  audioPlayer.paused ? audioPlayer.play() : audioPlayer.pause();
-  initAudioContext();
+  try {
+    initAudioContext();
+    if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
+    if (audioPlayer.paused) {
+      await audioPlayer.play();
+    } else {
+      audioPlayer.pause();
+    }
+  } catch (error) {
+    console.error('Gagal menginisialisasi audio:', error);
+    if (statusText) statusText.textContent = 'Audio tidak dapat dimulai. Coba tekan putar lagi.';
+  }
 });
 audioPlayer.addEventListener(
   'play',
@@ -633,22 +643,34 @@ function updateProgress(e) {
 
 function initAudioContext() {
   if (isAudioInitialized) return;
-  try {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 192000 });
-  } catch (e) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) {
+    throw new Error('Browser ini tidak mendukung Web Audio API.');
   }
+
+  // Biarkan browser memilih sample rate native perangkat. Memaksa 192 kHz
+  // tidak menambah detail sumber dan bisa memicu resampling/beban CPU berlebih.
+  audioContext = new AudioContextCtor();
   sourceNode = audioContext.createMediaElementSource(audioPlayer);
+
   analyser = audioContext.createAnalyser();
-  analyser.fftSize = 256;
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.82;
+  analyser.minDecibels = -90;
+  analyser.maxDecibels = -18;
 
   let prevNode = sourceNode;
 
+  // EQ lima band dengan nilai awal netral. Gunakan smoothing agar perubahan
+  // slider/preset tidak menimbulkan klik pada audio.
   [60, 230, 910, 3000, 14000].forEach((freq, i) => {
     const filter = audioContext.createBiquadFilter();
     filter.type = i === 0 ? 'lowshelf' : i === 4 ? 'highshelf' : 'peaking';
-    filter.frequency.value = freq;
-    filter.gain.value = eqSliders[freq === 3000 ? '3k' : freq === 14000 ? '14k' : freq].value;
+    filter.frequency.value = Math.min(freq, audioContext.sampleRate * 0.45);
+    filter.gain.value = Number(eqSliders[
+      freq === 3000 ? '3k' : freq === 14000 ? '14k' : freq
+    ]?.value || 0);
     if (filter.type === 'peaking') filter.Q.value = 1.0;
     prevNode.connect(filter);
     prevNode = filter;
@@ -656,90 +678,161 @@ function initAudioContext() {
   });
 
   dspNodes.panner = audioContext.createStereoPanner();
+  dspNodes.panner.pan.value = 0;
   prevNode.connect(dspNodes.panner);
   prevNode = dspNodes.panner;
 
   dspNodes.iceFilter = audioContext.createBiquadFilter();
   dspNodes.iceFilter.type = 'highshelf';
-  dspNodes.iceFilter.frequency.value = 10000;
+  dspNodes.iceFilter.frequency.value = Math.min(10000, audioContext.sampleRate * 0.45);
+  dspNodes.iceFilter.gain.value = 0;
   prevNode.connect(dspNodes.iceFilter);
   prevNode = dspNodes.iceFilter;
 
   dspNodes.radarFilter = audioContext.createBiquadFilter();
   dspNodes.radarFilter.type = 'peaking';
-  dspNodes.radarFilter.frequency.value = 2500;
-  dspNodes.radarFilter.Q.value = 2.5;
+  dspNodes.radarFilter.frequency.value = Math.min(2500, audioContext.sampleRate * 0.4);
+  dspNodes.radarFilter.Q.value = 1.2;
+  dspNodes.radarFilter.gain.value = 0;
   prevNode.connect(dspNodes.radarFilter);
   prevNode = dspNodes.radarFilter;
 
+  // Kompresi ringan sebagai pengaman puncak. Profil DSP dapat mengubah
+  // karakter kompresi, tetapi bukan emulasi resmi Dolby/DTS.
   dspNodes.compressor = audioContext.createDynamicsCompressor();
+  dspNodes.compressor.threshold.value = -6;
+  dspNodes.compressor.knee.value = 8;
+  dspNodes.compressor.ratio.value = 2;
+  dspNodes.compressor.attack.value = 0.006;
+  dspNodes.compressor.release.value = 0.18;
   prevNode.connect(dspNodes.compressor);
   prevNode = dspNodes.compressor;
 
-  prevNode.connect(analyser);
+  // Headroom mengurangi risiko clipping saat beberapa band EQ dinaikkan.
+  dspNodes.outputGain = audioContext.createGain();
+  dspNodes.outputGain.gain.value = 0.82;
+  prevNode.connect(dspNodes.outputGain);
+  dspNodes.outputGain.connect(analyser);
   analyser.connect(audioContext.destination);
 
   isAudioInitialized = true;
   applyAdvancedDSP();
   resizeCanvas();
-  requestAnimationFrame(drawVisualizer);
+  if (!visualizerRunning) {
+    visualizerRunning = true;
+    requestAnimationFrame(drawVisualizer);
+  }
+}
+
+function setAudioParam(param, value, timeConstant = 0.025) {
+  if (!param || !audioContext) return;
+  const now = audioContext.currentTime;
+  try {
+    param.cancelScheduledValues(now);
+    param.setTargetAtTime(value, now, timeConstant);
+  } catch (_) {
+    param.value = value;
+  }
 }
 
 function applyAdvancedDSP() {
   if (!isAudioInitialized || !dspNodes.compressor) return;
-  const engine = spatialEngine.value;
 
-  dspNodes.panner.pan.value = 0;
-  dspNodes.compressor.threshold.value = 0;
-  dspNodes.compressor.ratio.value = 1;
-  dspNodes.iceFilter.gain.value = 0;
-  dspNodes.radarFilter.gain.value = 0;
+  const engine = spatialEngine?.value || 'off';
+  const now = audioContext.currentTime;
+
+  // Default netral: hindari boost frekuensi otomatis yang membuat suara tajam
+  // atau berlumpur pada headphone/speaker yang berbeda.
+  setAudioParam(dspNodes.panner.pan, 0);
+  setAudioParam(dspNodes.iceFilter.gain, iceSound?.checked ? 2.5 : 0);
+  setAudioParam(dspNodes.radarFilter.gain, sonicRadar?.checked ? 2.0 : 0);
+
+  let threshold = -6;
+  let ratio = 2;
+  let knee = 8;
+  let attack = 0.006;
+  let release = 0.18;
 
   if (engine === 'dolby') {
-    const dProfile = dolbyProfile.value;
-    dspNodes.compressor.threshold.value = -24;
-    dspNodes.compressor.attack.value = 0.05;
-    dspNodes.compressor.release.value = 0.25;
-
-    if (dProfile === 'atmos' || dProfile === 'premium') {
-      dspNodes.compressor.ratio.value = 3.5;
-      dspNodes.panner.pan.value = 0.02;
-    } else if (dProfile === 'cinema5' || dProfile === 'xfi5') {
-      dspNodes.compressor.ratio.value = 5.0;
-      dspNodes.compressor.knee.value = 30;
-    }
+    const profile = dolbyProfile?.value || 'premium';
+    threshold = -9;
+    ratio = (profile === 'cinema5' || profile === 'xfi5') ? 3.2 : 2.2;
+    knee = 12;
+    attack = 0.012;
+    release = 0.24;
   } else if (engine === 'dts') {
-    const dProfile = dtsProfile.value;
-    dspNodes.compressor.threshold.value = -20;
-    dspNodes.compressor.attack.value = 0.003;
-    dspNodes.compressor.release.value = 0.1;
-
-    if (dProfile === 'dtsx' || dProfile === 'unbound') {
-      dspNodes.compressor.ratio.value = 8.0;
-    } else if (dProfile === 'studio' || dProfile === 'sbx720') {
-      dspNodes.compressor.ratio.value = 6.0;
-      dspNodes.compressor.knee.value = 10;
-    }
+    const profile = dtsProfile?.value || 'studio';
+    threshold = -8;
+    ratio = (profile === 'dtsx' || profile === 'unbound') ? 3.5 : 2.6;
+    knee = 8;
+    attack = 0.004;
+    release = 0.16;
   }
 
-  if (iceSound.checked) dspNodes.iceFilter.gain.value = 6.0;
-  if (sonicRadar.checked) dspNodes.radarFilter.gain.value = 5.0;
+  // SetTargetAtTime keeps DSP changes smooth and avoids sudden gain jumps.
+  setAudioParam(dspNodes.compressor.threshold, threshold);
+  setAudioParam(dspNodes.compressor.ratio, ratio);
+  setAudioParam(dspNodes.compressor.knee, knee);
+  setAudioParam(dspNodes.compressor.attack, attack);
+  setAudioParam(dspNodes.compressor.release, release);
+
+  // Small high-shelf/upper-mid lift only when explicitly enabled.
+  // This is a tone-shaping effect, not real spatial positioning.
+  void now;
 }
 
+function resizeCanvas() {
+  if (!canvas || !canvasCtx) return;
+  const container = canvas.parentElement;
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  canvas.style.width = `${rect.width}px`;
+  canvas.style.height = `${rect.height}px`;
+  canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas, { passive: true });
+
 function drawVisualizer() {
+  if (!visualizerRunning || !canvas || !canvasCtx) return;
   requestAnimationFrame(drawVisualizer);
-  if (!analyser) return;
+
+  const width = canvas.clientWidth || canvas.width;
+  const height = canvas.clientHeight || canvas.height;
+  canvasCtx.clearRect(0, 0, width, height);
+  if (!analyser || !width || !height) return;
+
   const data = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(data);
-  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-  const barCount = 45;
-  const bw = canvas.width / barCount - 2;
-  let x = 0;
+
+  // Logarithmic grouping uses more bins for bass/mids and keeps highs visible.
+  const barCount = Math.max(20, Math.min(72, Math.floor(width / 7)));
+  const gap = Math.max(1, Math.min(3, width / (barCount * 12)));
+  const barWidth = Math.max(1, (width - gap * (barCount - 1)) / barCount);
+  const gradient = canvasCtx.createLinearGradient(0, height, 0, 0);
+  gradient.addColorStop(0, visualizerColor);
+  gradient.addColorStop(0.65, '#8be9a5');
+  gradient.addColorStop(1, '#e7fff0');
+  canvasCtx.fillStyle = gradient;
+
   for (let i = 0; i < barCount; i++) {
-    const bh = (data[i] / 255) * canvas.height;
-    canvasCtx.fillStyle = visualizerColor;
-    canvasCtx.fillRect(x, canvas.height - bh, bw, bh);
-    x += bw + 2;
+    const start = Math.floor(Math.pow(i / barCount, 2.15) * (data.length - 1));
+    const end = Math.max(start + 1, Math.floor(Math.pow((i + 1) / barCount, 2.15) * (data.length - 1)));
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += data[j];
+    const magnitude = sum / (end - start) / 255;
+    const barHeight = Math.max(2, Math.pow(magnitude, 1.25) * height * 0.96);
+    const x = i * (barWidth + gap);
+    const radius = Math.min(3, barWidth / 2, barHeight / 2);
+    canvasCtx.beginPath();
+    if (canvasCtx.roundRect) {
+      canvasCtx.roundRect(x, height - barHeight, barWidth, barHeight, radius);
+      canvasCtx.fill();
+    } else {
+      canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+    }
   }
 }
 
@@ -751,18 +844,21 @@ const presets = {
 };
 eqPreset.addEventListener('change', (e) => {
   const p = presets[e.target.value];
-  if (p) {
-    [60, 230, 910, 3000, 14000].forEach((f) => {
-      const id = f === 3000 ? '3k' : f === 14000 ? '14k' : f;
-      eqSliders[id].value = p[f];
-      if (isAudioInitialized) filters[f].gain.value = p[f];
-    });
-  }
+  if (!p) return;
+  [60, 230, 910, 3000, 14000].forEach((freq) => {
+    const id = freq === 3000 ? '3k' : freq === 14000 ? '14k' : freq;
+    const slider = eqSliders[id];
+    if (!slider) return;
+    slider.value = p[freq];
+    if (filters[freq]) setAudioParam(filters[freq].gain, Number(p[freq]));
+  });
 });
 Object.keys(eqSliders).forEach((key) => {
-  eqSliders[key].addEventListener('input', (e) => {
-    const freq = key === '3k' ? 3000 : key === '14k' ? 14000 : parseInt(key);
-    if (filters[freq]) filters[freq].gain.value = parseFloat(e.target.value);
+  const slider = eqSliders[key];
+  if (!slider) return;
+  slider.addEventListener('input', (e) => {
+    const freq = key === '3k' ? 3000 : key === '14k' ? 14000 : parseInt(key, 10);
+    if (filters[freq]) setAudioParam(filters[freq].gain, Number(e.target.value));
     eqPreset.value = 'custom';
   });
 });
@@ -1078,7 +1174,8 @@ async function playSelectedTrack(track, isHistoryClick = false, isPrevClick = fa
       setTimeout(resizeCanvas, 300);
       fetchLyrics(track.title, track.duration || 0);
     } catch (e) {
-      statusText.innerHTML = '';
+      console.error('Audio start gagal:', e);
+      statusText.textContent = 'Gagal memulai audio. Periksa koneksi lalu tekan putar kembali.';
       fetchLyrics(track.title, track.duration || 0);
     }
   } catch (e) {

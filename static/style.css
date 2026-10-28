@@ -781,3 +781,47 @@ canvas {
     min-height: 40px;
   }
 }
+
+
+/* --- Audio DSP refinements --- */
+#visualizerCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.96;
+}
+
+.eq-slider {
+  accent-color: #1db954;
+  touch-action: pan-x;
+}
+
+.eq-slider:focus-visible,
+#eqPreset:focus-visible,
+#spatialEngine:focus-visible,
+#dolbyProfile:focus-visible,
+#dtsProfile:focus-visible {
+  outline: 2px solid rgba(29, 185, 84, 0.85);
+  outline-offset: 3px;
+}
+
+#eqPreset,
+#spatialEngine,
+#dolbyProfile,
+#dtsProfile {
+  max-width: 100%;
+}
+
+.ae-card {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-art,
+  .control-btn,
+  .play-pause-btn,
+  .folder-action-btn,
+  .list-item {
+    transition: none !important;
+  }
+}
