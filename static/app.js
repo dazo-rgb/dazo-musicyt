@@ -72,7 +72,13 @@ let audioContext,
   analyser,
   filters = {},
   isAudioInitialized = false;
-let dspNodes = { panner: null, compressor: null, iceFilter: null, radarFilter: null, outputGain: null };
+let dspNodes = {
+  panner: null,
+  compressor: null,
+  iceFilter: null,
+  radarFilter: null,
+  outputGain: null,
+};
 let visualizerColor = 'rgb(29, 185, 84)';
 let visualizerRunning = false;
 let syncedLyricsData = [];
@@ -649,8 +655,6 @@ function initAudioContext() {
     throw new Error('Browser ini tidak mendukung Web Audio API.');
   }
 
-  // Biarkan browser memilih sample rate native perangkat. Memaksa 192 kHz
-  // tidak menambah detail sumber dan bisa memicu resampling/beban CPU berlebih.
   audioContext = new AudioContextCtor();
   sourceNode = audioContext.createMediaElementSource(audioPlayer);
 
@@ -662,15 +666,13 @@ function initAudioContext() {
 
   let prevNode = sourceNode;
 
-  // EQ lima band dengan nilai awal netral. Gunakan smoothing agar perubahan
-  // slider/preset tidak menimbulkan klik pada audio.
   [60, 230, 910, 3000, 14000].forEach((freq, i) => {
     const filter = audioContext.createBiquadFilter();
     filter.type = i === 0 ? 'lowshelf' : i === 4 ? 'highshelf' : 'peaking';
     filter.frequency.value = Math.min(freq, audioContext.sampleRate * 0.45);
-    filter.gain.value = Number(eqSliders[
-      freq === 3000 ? '3k' : freq === 14000 ? '14k' : freq
-    ]?.value || 0);
+    filter.gain.value = Number(
+      eqSliders[freq === 3000 ? '3k' : freq === 14000 ? '14k' : freq]?.value || 0,
+    );
     if (filter.type === 'peaking') filter.Q.value = 1.0;
     prevNode.connect(filter);
     prevNode = filter;
@@ -697,8 +699,6 @@ function initAudioContext() {
   prevNode.connect(dspNodes.radarFilter);
   prevNode = dspNodes.radarFilter;
 
-  // Kompresi ringan sebagai pengaman puncak. Profil DSP dapat mengubah
-  // karakter kompresi, tetapi bukan emulasi resmi Dolby/DTS.
   dspNodes.compressor = audioContext.createDynamicsCompressor();
   dspNodes.compressor.threshold.value = -6;
   dspNodes.compressor.knee.value = 8;
@@ -708,7 +708,6 @@ function initAudioContext() {
   prevNode.connect(dspNodes.compressor);
   prevNode = dspNodes.compressor;
 
-  // Headroom mengurangi risiko clipping saat beberapa band EQ dinaikkan.
   dspNodes.outputGain = audioContext.createGain();
   dspNodes.outputGain.gain.value = 0.82;
   prevNode.connect(dspNodes.outputGain);
@@ -741,8 +740,6 @@ function applyAdvancedDSP() {
   const engine = spatialEngine?.value || 'off';
   const now = audioContext.currentTime;
 
-  // Default netral: hindari boost frekuensi otomatis yang membuat suara tajam
-  // atau berlumpur pada headphone/speaker yang berbeda.
   setAudioParam(dspNodes.panner.pan, 0);
   setAudioParam(dspNodes.iceFilter.gain, iceSound?.checked ? 2.5 : 0);
   setAudioParam(dspNodes.radarFilter.gain, sonicRadar?.checked ? 2.0 : 0);
@@ -756,28 +753,24 @@ function applyAdvancedDSP() {
   if (engine === 'dolby') {
     const profile = dolbyProfile?.value || 'premium';
     threshold = -9;
-    ratio = (profile === 'cinema5' || profile === 'xfi5') ? 3.2 : 2.2;
+    ratio = profile === 'cinema5' || profile === 'xfi5' ? 3.2 : 2.2;
     knee = 12;
     attack = 0.012;
     release = 0.24;
   } else if (engine === 'dts') {
     const profile = dtsProfile?.value || 'studio';
     threshold = -8;
-    ratio = (profile === 'dtsx' || profile === 'unbound') ? 3.5 : 2.6;
+    ratio = profile === 'dtsx' || profile === 'unbound' ? 3.5 : 2.6;
     knee = 8;
     attack = 0.004;
     release = 0.16;
   }
 
-  // SetTargetAtTime keeps DSP changes smooth and avoids sudden gain jumps.
   setAudioParam(dspNodes.compressor.threshold, threshold);
   setAudioParam(dspNodes.compressor.ratio, ratio);
   setAudioParam(dspNodes.compressor.knee, knee);
   setAudioParam(dspNodes.compressor.attack, attack);
   setAudioParam(dspNodes.compressor.release, release);
-
-  // Small high-shelf/upper-mid lift only when explicitly enabled.
-  // This is a tone-shaping effect, not real spatial positioning.
   void now;
 }
 
@@ -807,7 +800,6 @@ function drawVisualizer() {
   const data = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(data);
 
-  // Logarithmic grouping uses more bins for bass/mids and keeps highs visible.
   const barCount = Math.max(20, Math.min(72, Math.floor(width / 7)));
   const gap = Math.max(1, Math.min(3, width / (barCount * 12)));
   const barWidth = Math.max(1, (width - gap * (barCount - 1)) / barCount);
@@ -819,7 +811,10 @@ function drawVisualizer() {
 
   for (let i = 0; i < barCount; i++) {
     const start = Math.floor(Math.pow(i / barCount, 2.15) * (data.length - 1));
-    const end = Math.max(start + 1, Math.floor(Math.pow((i + 1) / barCount, 2.15) * (data.length - 1)));
+    const end = Math.max(
+      start + 1,
+      Math.floor(Math.pow((i + 1) / barCount, 2.15) * (data.length - 1)),
+    );
     let sum = 0;
     for (let j = start; j < end; j++) sum += data[j];
     const magnitude = sum / (end - start) / 255;
@@ -1018,11 +1013,7 @@ function renderHistory() {
     bindAccordion(dayDiv.querySelector('.folder-header'));
 
     grouped[day].forEach((track) => {
-      const item = createListItem(track, false, true, track.timePlayed, () => {
-        let hist = getHistory().filter((t) => t.webpage_url !== track.webpage_url);
-        localStorage.setItem('dazo_history', JSON.stringify(hist));
-        renderHistory();
-      });
+      const item = createListItem(track, false, true, track.timePlayed, null);
 
       item.addEventListener('click', (e) => {
         if (e.target.closest('button')) return;
@@ -1034,14 +1025,6 @@ function renderHistory() {
     isFirstDay = false;
   }
 }
-
-document.getElementById('clearHistoryBtn').addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (confirm('Hapus seluruh riwayat putar?')) {
-    localStorage.removeItem('dazo_history');
-    renderHistory();
-  }
-});
 
 window.addEventListener('DOMContentLoaded', () => {
   renderHistory();
@@ -1150,6 +1133,9 @@ async function playSelectedTrack(track, isHistoryClick = false, isPrevClick = fa
   currentTrackObj = track;
   checkLikedStatus();
   currentRepeatCount = 0;
+
+  autoQueueRelatedTracks(track.title);
+
   progressFill.style.width = '0%';
   currentTimeDisplay.textContent = '0:00';
   playPauseBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
@@ -1228,4 +1214,33 @@ function applySmartDSP(mode) {
   setTimeout(() => {
     statusText.innerHTML = '';
   }, 1500);
+}
+
+// --- LOGIKA AUTO-QUEUE BERDASARKAN ARTIS/GENRE ---
+async function autoQueueRelatedTracks(title) {
+  if (playQueue.length >= 3) return;
+
+  try {
+    let keyword = title
+      .split('-')[0]
+      .replace(/official|music video|lyric video|audio|hd/gi, '')
+      .trim();
+    if (!keyword || keyword.length < 3) keyword = title.split(' ').slice(0, 2).join(' ');
+
+    const res = await fetch(`/api/search?q=${encodeURIComponent(keyword)}`);
+    const data = await res.json();
+
+    if (data && !data.error && data.length > 0) {
+      let related = data.filter((t) => t.webpage_url !== currentTrackObj.webpage_url);
+      let toAdd = related.slice(0, 4);
+      toAdd.forEach((t) => {
+        if (!playQueue.some((q) => q.webpage_url === t.webpage_url)) {
+          playQueue.push(t);
+        }
+      });
+      renderQueue();
+    }
+  } catch (err) {
+    console.error('Gagal memuat auto-queue:', err);
+  }
 }

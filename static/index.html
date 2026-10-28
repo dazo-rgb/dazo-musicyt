@@ -164,16 +164,7 @@
               <h6 class="section-title mb-0 text-secondary">
                 <i class="bi bi-clock-history me-2"></i> Terakhir Diputar
               </h6>
-              <div class="d-flex align-items-center gap-2">
-                <button
-                  class="btn btn-link p-0 text-danger"
-                  id="clearHistoryBtn"
-                  title="Kosongkan Riwayat"
-                >
-                  <i class="bi bi-trash fs-6"></i>
-                </button>
-                <i id="icon-history" class="bi bi-chevron-down text-white-50 transition-icon"></i>
-              </div>
+              <i id="icon-history" class="bi bi-chevron-down text-white-50 transition-icon"></i>
             </div>
             <div id="historyListWrapper" class="folder-content">
               <div id="historyList" class="d-flex flex-column gap-2 mt-2"></div>
@@ -301,7 +292,7 @@
               </div>
             </div>
 
-            <!-- 1. DSP OVERLAY (NO SCROLL, RESPONSIF LAYAR KECIL) -->
+            <!-- 1. DSP OVERLAY -->
             <div
               id="dspOverlay"
               class="custom-overlay d-none d-flex flex-column p-3 p-md-4 overflow-hidden"
@@ -320,7 +311,6 @@
                   Sesuaikan pemrosesan sinyal digital (DSP) untuk pengalaman maksimal.
                 </p>
               </div>
-              <!-- Grid Kontainer DSP -->
               <div class="dsp-grid-container w-100 mx-auto flex-grow-1">
                 <button class="btn dsp-card-btn active" data-mode="pure">
                   <div class="dsp-icon-wrapper"><i class="bi bi-earbuds text-light"></i></div>
@@ -372,7 +362,7 @@
               </div>
             </div>
 
-            <!-- 3. EQ & AE OVERLAY (NO SCROLL, FIT SCREEN) -->
+            <!-- 3. EQ & AE OVERLAY -->
             <div
               id="eqOverlay"
               class="custom-overlay d-none d-flex flex-column p-2 p-md-4 overflow-hidden"
@@ -386,7 +376,6 @@
                 <button class="btn-close btn-close-white" id="closeEqBtn"></button>
               </div>
 
-              <!-- Container Grid AE -->
               <div class="ae-grid-container w-100 mx-auto flex-grow-1 mt-1">
                 <div
                   class="glass-card ae-card d-flex flex-column border border-secondary border-opacity-25"
@@ -526,7 +515,7 @@
                     </select>
                   </div>
                   <div
-                    class="d-flex flex-column gap-1 pt-1 border-top border-secondary border-opacity-25 flex-shrink-0"
+                    class="ae-toggles-container border-top border-secondary border-opacity-25 flex-shrink-0"
                   >
                     <div class="form-check form-switch d-flex align-items-center gap-2 m-0">
                       <input
